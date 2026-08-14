@@ -1,8 +1,9 @@
 # CoproApp
 
-Gestion de copropriété pour les petites copropriétés (4-5 lots) gérées par un syndic bénévole.
-
-Conçu pour le régime « petite copropriété » français (art. 41-8 loi du 10 juillet 1965) :
+Gestion de copropriété pour syndic bénévole, conçue pour le régime « petite copropriété »
+français (art. 41-8 de la loi du 10 juillet 1965, issu de l'ordonnance n° 2019-1101 :
+**≤ 5 lots** à usage de logements, bureaux ou commerces, **ou** budget prévisionnel moyen
+**< 15 000 €**/an) et **utilisable sans limite de lots** — 12 lots, 15 lots ou plus :
 comptabilité simplifiée, consultation écrite, majorités de vote automatiques.
 
 ## Fonctionnalités
