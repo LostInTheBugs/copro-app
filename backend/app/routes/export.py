@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_syndic
 from app.models.user import User
 from app.models.lot import Lot
 from app.models.personne import Personne
@@ -12,8 +12,11 @@ from app.models.exercice import Exercice
 from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
 from app.routes.copro import get_or_create_copro
+from app.routes.relances import _etat_lots
 from app.services.compte_gestion import generer_compte_gestion_pdf
 from app.services.quittances import generer_quittances_pdf
+from app.services.emailer import envoyer_email, situation_texte, EmailError
+from app.schemas import InvitationsResult
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -54,6 +57,49 @@ def quittances(exercice_id: int, lot_id: int | None = None, db: Session = Depend
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{nom}"'},
     )
+
+
+@router.post("/situation-fonds")
+def envoyer_situation_fonds(db: Session = Depends(get_db), user: User = Depends(require_syndic)):
+    """Envoie à chaque copropriétaire la situation du fonds de travaux et de son lot."""
+    from app.models.exercice import Exercice, BudgetLine
+    from app.models.copropriete import Copropriete
+    copro = get_or_create_copro(db, user)
+    ex = (db.query(Exercice)
+          .filter(Exercice.copropriete_id == copro.id, Exercice.cloture == False)
+          .order_by(Exercice.annee.desc()).first())
+    if not ex:
+        ex = (db.query(Exercice).filter(Exercice.copropriete_id == copro.id)
+              .order_by(Exercice.annee.desc()).first())
+    if not ex:
+        raise HTTPException(404, "Aucun exercice — créez d'abord l'exercice en cours dans l'onglet Comptes")
+
+    budget = sum(b.montant for b in db.query(BudgetLine).filter(BudgetLine.exercice_id == ex.id).all())
+    objectif_ft = round(budget * 0.05, 2)
+    ft_encaisse = round(sum(m.montant for m in db.query(Mouvement).filter(
+        Mouvement.type == "encaissement", Mouvement.categorie == "fonds_travaux").all()), 2)
+    ft_depense = round(sum(m.montant for m in db.query(Mouvement).filter(
+        Mouvement.type == "depense", Mouvement.categorie == "fonds_travaux").all()), 2)
+    ft_encours = round(ft_encaisse - ft_depense, 2)
+
+    envoye, sans_email, erreurs = 0, 0, []
+    for e in _etat_lots(db, copro):
+        p = e["personne"]
+        if not p or not p.email:
+            sans_email += 1
+            continue
+        sujet = f"Situation du fonds de travaux — {copro.nom}"
+        corps = situation_texte(
+            copro, p.prenom, e["lot"].numero, e["solde"],
+            ft_encaisse, ft_depense, ft_encours, objectif_ft,
+            user.nom or "le syndic",
+        )
+        try:
+            envoyer_email(copro, p.email, sujet, corps)
+            envoye += 1
+        except EmailError as err:
+            erreurs.append(f"{p.prenom} {p.nom}: {err}")
+    return InvitationsResult(envoyes=envoye, sans_email=sans_email, erreurs=erreurs)
 
 
 def _csv(data: list[list], headers: list[str]) -> StreamingResponse:

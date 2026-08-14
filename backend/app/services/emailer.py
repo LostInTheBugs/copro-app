@@ -96,6 +96,38 @@ def relance_texte(copro, lot_numero: str, personne_prenom: str, solde: float,
     return "\n".join(lignes)
 
 
+def situation_texte(copro, personne_prenom: str, lot_numero: str, solde_lot: float,
+                    ft_encaisse: float, ft_depense: float, ft_encours: float,
+                    objectif_ft: float, syndic_nom: str) -> str:
+    """Email de situation du fonds de travaux envoyé aux copropriétaires."""
+    lignes = [
+        f"Bonjour {personne_prenom},",
+        "",
+        f"Voici la situation du fonds de travaux de la copropriété « {copro.nom} » :",
+        "",
+        f"  • Cotisations encaissées : {_fmt_eur(ft_encaisse)}",
+        f"  • Dépenses financées par le fonds : {_fmt_eur(ft_depense)}",
+        f"  • Encours du fonds de travaux : {_fmt_eur(ft_encours)}",
+        f"  • Objectif annuel minimal (5 % du budget) : {_fmt_eur(objectif_ft)}",
+        "",
+        "Situation de votre lot :",
+        f"  • Lot {lot_numero} — solde de votre compte de charges : {_fmt_eur(solde_lot)}",
+        "",
+        "Ce fonds est obligatoire (art. 14-2 de la loi n°65-557) et servira au financement "
+        "des travaux prévus au plan pluriannuel de travaux.",
+        "",
+        f"Pour toute question, contactez le syndic ({syndic_nom}).",
+        "",
+        "Cordialement,",
+        f"{syndic_nom}",
+    ]
+    return "\n".join(lignes)
+
+
+def _fmt_eur(v: float) -> str:
+    return f"{v:,.2f} €".replace(",", " ").replace(".", ",")
+
+
 def convocation_texte(copro, ag, resolutions, syndic_nom: str) -> str:
     """Corps du message de convocation (texte brut)."""
     type_label = {

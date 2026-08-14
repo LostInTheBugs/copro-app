@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
-import type { Recap, Mouvement, Travaux } from "../types";
+import { api, getToken } from "../api";
+import { useUser } from "../auth";
+import type { Recap, Mouvement, Travaux, InvitationsResult } from "../types";
 import { fmtEUR, fmtDate } from "../types";
 import { Card, Stat, Badge, Empty } from "../components/ui";
 
 const MOIS_COURTS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 export default function Dashboard() {
+  const { user } = useUser();
+  const isSyndic = user?.role === "syndic";
   const [recap, setRecap] = useState<Recap | null>(null);
   const [mouvements, setMouvements] = useState<Mouvement[]>([]);
   const [travaux, setTravaux] = useState<Travaux[]>([]);
+  const [envoiSituation, setEnvoiSituation] = useState<InvitationsResult | null>(null);
+  const [busySituation, setBusySituation] = useState(false);
 
   const load = useCallback(async () => {
     const r = await api.get<Recap>("/recap");
@@ -145,7 +150,37 @@ export default function Dashboard() {
 
         {/* Fonds de travaux + PPT */}
         <div className="space-y-6">
-          <Card title="Fonds de travaux — progression">
+          <Card
+            title="Fonds de travaux — progression"
+            action={
+              isSyndic ? (
+                <button
+                  onClick={async () => {
+                    setBusySituation(true);
+                    setEnvoiSituation(null);
+                    try {
+                      const res = await api.post<InvitationsResult>("/export/situation-fonds");
+                      setEnvoiSituation(res);
+                    } finally {
+                      setBusySituation(false);
+                    }
+                  }}
+                  disabled={busySituation}
+                  className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  title="Envoyer la situation du fonds de travaux à tous les copropriétaires"
+                >
+                  {busySituation ? "Envoi…" : "✉️ Envoyer la situation"}
+                </button>
+              ) : undefined
+            }
+          >
+            {envoiSituation && (
+              <p className="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                ✅ {envoiSituation.envoyes} email(s) envoyé(s)
+                {envoiSituation.sans_email > 0 && ` · ${envoiSituation.sans_email} sans email`}
+                {envoiSituation.erreurs.length > 0 && ` · ${envoiSituation.erreurs.length} erreur(s)`}
+              </p>
+            )}
             <div className="mb-2 flex items-end justify-between">
               <div>
                 <p className="text-2xl font-bold text-indigo-700">{fmtEUR(ftEncaisse)}</p>
@@ -220,6 +255,7 @@ export default function Dashboard() {
                   <th className="pb-2 text-right font-medium">Appels</th>
                   <th className="pb-2 text-right font-medium">Payé</th>
                   <th className="pb-2 text-right font-medium">Solde</th>
+                  <th className="pb-2 text-right font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -241,6 +277,15 @@ export default function Dashboard() {
                       ) : (
                         <span className="font-medium text-emerald-600">{fmtEUR(l.solde)}</span>
                       )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <a
+                        href={`/api/export/quittances/${recap.exercice_id}?lot_id=${l.lot.id}&token=${encodeURIComponent(getToken() ?? "")}`}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
+                        title="Quittance du lot en PDF"
+                      >
+                        🧾 Quittance
+                      </a>
                     </td>
                   </tr>
                 ))}

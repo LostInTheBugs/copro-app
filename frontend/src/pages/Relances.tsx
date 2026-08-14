@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, getToken } from "../api";
 import { useUser } from "../auth";
 import type { RelanceLot, Relance } from "../types";
 import { fmtEUR, fmtDateTime } from "../types";
@@ -10,18 +10,21 @@ export default function Relances() {
   const isSyndic = user?.role === "syndic";
   const [etat, setEtat] = useState<RelanceLot[]>([]);
   const [historique, setHistorique] = useState<Relance[]>([]);
+  const [exerciceId, setExerciceId] = useState<number | null>(null);
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [resultat, setResultat] = useState<{ envoyes: number; sans_email: number; erreurs: string[] } | null>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const [e, h] = await Promise.all([
+    const [e, h, r] = await Promise.all([
       api.get<RelanceLot[]>("/relances"),
       api.get<Relance[]>("/relances/historique"),
+      api.get<{ exercice_id: number | null }>("/recap").catch(() => ({ exercice_id: null })),
     ]);
     setEtat(e);
     setHistorique(h);
+    setExerciceId(r.exercice_id);
     setSelection(new Set(e.filter((x) => x.solde > 0.005).map((x) => x.lot_id)));
   }, []);
   useEffect(() => { load().catch(() => {}); }, [load]);
@@ -94,6 +97,7 @@ export default function Relances() {
                   <th className="px-3 py-2 text-right font-medium">Fonds travaux</th>
                   <th className="px-3 py-2 text-right font-medium">Encaissé</th>
                   <th className="px-3 py-2 text-right font-medium">Solde</th>
+                  <th className="px-3 py-2 text-right font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -125,6 +129,17 @@ export default function Relances() {
                           <Badge color="red">{fmtEUR(e.solde)}</Badge>
                         ) : (
                           <Badge color="green">{fmtEUR(e.solde)}</Badge>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {exerciceId && (
+                          <a
+                            href={`/api/export/quittances/${exerciceId}?lot_id=${e.lot_id}&token=${encodeURIComponent(getToken() ?? "")}`}
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
+                            title="Quittance du lot en PDF"
+                          >
+                            🧾 Quittance
+                          </a>
                         )}
                       </td>
                     </tr>
