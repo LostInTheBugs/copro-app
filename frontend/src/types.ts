@@ -1,0 +1,195 @@
+// Types alignés sur l'API backend
+
+export interface User {
+  id: number;
+  email: string;
+  nom: string;
+  role: string;
+}
+
+export interface Copro {
+  id: number;
+  nom: string;
+  adresse: string;
+  ville: string;
+  code_postal: string;
+  annee_construction: number | null;
+  regles_pays: string;
+  devise: string;
+  fonds_travaux_actif: boolean;
+  fonds_travaux_taux_pct: number;
+  fonds_travaux_compte: string;
+  compte_bancaire_separe: string;
+  notes: string;
+}
+
+export interface Personne {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  est_proprietaire: boolean;
+  est_occupant: boolean;
+  notes: string;
+}
+
+export interface Lot {
+  id: number;
+  numero: string;
+  designation: string;
+  type: string;
+  tantiemes: number;
+  surface_m2: number | null;
+  proprietaire_id: number | null;
+  occupant_id: number | null;
+  notes: string;
+}
+
+export interface LotSolde {
+  lot: Lot;
+  proprietaire: Personne | null;
+  occupant: Personne | null;
+  total_appels: number;
+  total_appels_fonds: number;
+  total_encaisse: number;
+  solde: number;
+}
+
+export interface Exercice {
+  id: number;
+  annee: number;
+  cloture: boolean;
+  budget_total: number;
+}
+
+export interface BudgetLine {
+  id: number;
+  libelle: string;
+  montant: number;
+  type_repartition: string;
+}
+
+export interface AppelLot {
+  id: number;
+  lot_id: number;
+  lot_numero: string;
+  montant_charges: number;
+  montant_fonds_travaux: number;
+}
+
+export interface Appel {
+  id: number;
+  exercice_id: number;
+  libelle: string;
+  date_emission: string;
+  date_echeance: string | null;
+  montant_total: number;
+  inclut_fonds_travaux: boolean;
+  fonds_travaux_montant: number;
+  parts: AppelLot[];
+}
+
+export interface Mouvement {
+  id: number;
+  date: string;
+  libelle: string;
+  type: string;
+  categorie: string;
+  montant: number;
+  lot_id: number | null;
+  appel_id: number | null;
+  piece_path: string;
+}
+
+export interface EtatDateLot {
+  lot: Lot;
+  appels_charges: number;
+  appels_fonds: number;
+  encaisse: number;
+  solde: number;
+}
+
+export interface Recap {
+  exercice_id: number;
+  annee: number;
+  budget_previsionnel: number;
+  encaisse: number;
+  depense: number;
+  solde_caisse: number;
+  fonds_travaux_encaisse: number;
+  appels_en_cours: number;
+  lots: EtatDateLot[];
+}
+
+export interface Vote {
+  id: number;
+  lot_id: number;
+  voix: string;
+}
+
+export interface ResolutionResult {
+  statut: string;
+  pour: number;
+  contre: number;
+  abstention: number;
+  total: number;
+  quorum: number;
+  regime_deux: boolean;
+  detail: string;
+}
+
+export interface Resolution {
+  id: number;
+  ag_id: number;
+  numero: number;
+  libelle: string;
+  texte: string;
+  majorite: string;
+  statut: string;
+  votes: Vote[];
+  resultat: ResolutionResult | null;
+}
+
+export interface AG {
+  id: number;
+  date: string;
+  type_ag: string;
+  statut: string;
+  lieu: string;
+  notes: string;
+  resolutions: Resolution[];
+}
+
+export interface Document {
+  id: number;
+  categorie: string;
+  libelle: string;
+  fichier: string;
+  date_ajout: string;
+}
+
+export interface Entretien {
+  id: number;
+  date: string;
+  type_intervention: string;
+  prestataire: string;
+  cout: number;
+  lot_id: number | null;
+  description: string;
+}
+
+export interface Majorite {
+  label: string;
+  description: string;
+}
+
+export const fmtEUR = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n || 0);
+
+export const fmtDate = (d: string) =>
+  new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+.env
+
+# Node
+node_modules/
+dist/
+frontend_dist/
+
+# Uploads
+uploads/
+
+# Divers
+.DS_Store
+*.log

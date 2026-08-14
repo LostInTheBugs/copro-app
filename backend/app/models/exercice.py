@@ -1,0 +1,29 @@
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
+from app.core.database import Base
+
+
+class Exercice(Base):
+    __tablename__ = "exercices"
+    id = Column(Integer, primary_key=True)
+    copropriete_id = Column(Integer, ForeignKey("coproprietes.id"), nullable=False)
+    annee = Column(Integer, nullable=False, index=True)
+    cloture = Column(Boolean, default=False)
+
+    copropriete = relationship("Copropriete", back_populates="exercices")
+    budget_lines = relationship("BudgetLine", back_populates="exercice", cascade="all, delete-orphan")
+    appels = relationship("AppelFonds", back_populates="exercice", cascade="all, delete-orphan")
+    mouvements = relationship("Mouvement", back_populates="exercice")
+
+
+class BudgetLine(Base):
+    __tablename__ = "budget_lines"
+    id = Column(Integer, primary_key=True)
+    exercice_id = Column(Integer, ForeignKey("exercices.id"), nullable=False)
+    libelle = Column(String, nullable=False)
+    montant = Column(Float, default=0.0)
+    # "generale" = répartie entre tous les lots par tantièmes
+    # "speciale" = frais spécifiques (répartie entre lots concernés, gérée manuellement)
+    type_repartition = Column(String, default="generale")
+
+    exercice = relationship("Exercice", back_populates="budget_lines")
