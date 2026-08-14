@@ -158,6 +158,7 @@ def main():
             db.add(AppelLot(appel_id=appel.id, lot_id=lot.id,
                             montant_charges=r2((total - ft) * lot.tantiemes / 1000),
                             montant_fonds_travaux=r2(ft * lot.tantiemes / 1000)))
+        db.flush()  # rend les parts visibles pour le lazy-load de appel.parts
         return appel
 
     def payer(appel, lot, date_paiement):
@@ -208,9 +209,8 @@ def main():
     c1 = creer_appel(exercices[2026], "Appel de fonds T1 2026", date(2026, 1, 5), date(2026, 1, 31), 2950.0)
     c2 = creer_appel(exercices[2026], "Appel de fonds T2 2026", date(2026, 4, 5), date(2026, 4, 30), 2950.0)
     for appel in (c1, c2):
-        for lot in lot_objs[:3]:  # lots 1, 2, 4 (index 0,1,3 → 3 lots ici)
+        for lot in (lot_objs[0], lot_objs[1], lot_objs[3]):  # lots 1, 2, 4 à jour
             payer(appel, lot, appel.date_echeance)
-    payer(c1, lot_objs[3], c1.date_echeance)  # lot 4 à jour aussi
     payer(c1, lot_objs[4], c1.date_echeance)  # SCI a payé T1
     # lots 3 (Bernard) et 5 (SCI) : T2 non payé → relances
     depense(exercices[2026], date(2026, 1, 15), "Prime d'assurance immeuble 2026", 1160.0)
@@ -233,7 +233,8 @@ def main():
             db.add(res)
             db.flush()
             for lot, voix in votes:
-                db.add(Vote(resolution_id=res.id, lot_id=lot.id, voix=voix))
+                lot_id = lot.id if hasattr(lot, "id") else lot
+                db.add(Vote(resolution_id=res.id, lot_id=lot_id, voix=voix))
         return ag
 
     ag_avec_resolutions(date(2024, 3, 14), "18:30", "terminee", [
@@ -387,6 +388,7 @@ def main():
             db.add(AppelLot(appel_id=appel.id, lot_id=lot.id,
                             montant_charges=r2((total - ft) * lot.tantiemes / 1000),
                             montant_fonds_travaux=r2(ft * lot.tantiemes / 1000)))
+        db.flush()  # rend les parts visibles pour le lazy-load de appel.parts
         return appel
 
     def payer_a(appel, lot, date_paiement):
