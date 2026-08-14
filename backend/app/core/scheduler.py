@@ -7,7 +7,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.core.database import SessionLocal
 from app.services.relance_auto import run_relances_auto
 
-log = logging.getLogger("coproapp.scheduler")
+log = logging.getLogger("uvicorn.error")
 
 _scheduler: BackgroundScheduler | None = None
 
