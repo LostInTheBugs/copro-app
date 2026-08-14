@@ -59,13 +59,22 @@ export default function Comptes() {
             </Select>
           )}
           {exId && (
-            <a
-              href={`/api/export/compte-gestion/${exId}?token=${encodeURIComponent(getToken() ?? "")}`}
-              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
-              title="Télécharger le compte de gestion de l'exercice en PDF"
-            >
-              📊 Compte de gestion (PDF)
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/export/quittances/${exId}?token=${encodeURIComponent(getToken() ?? "")}`}
+                className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                title="Télécharger les quittances de tous les lots en PDF"
+              >
+                🧾 Quittances (PDF)
+              </a>
+              <a
+                href={`/api/export/compte-gestion/${exId}?token=${encodeURIComponent(getToken() ?? "")}`}
+                className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                title="Télécharger le compte de gestion de l'exercice en PDF"
+              >
+                📊 Compte de gestion (PDF)
+              </a>
+            </div>
           )}
           {isSyndic && (
             <>

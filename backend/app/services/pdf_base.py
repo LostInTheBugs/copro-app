@@ -61,3 +61,8 @@ def page_margins():
         leftMargin=18 * mm, rightMargin=18 * mm,
         topMargin=16 * mm, bottomMargin=16 * mm,
     )
+
+
+def fmt_eur(v: float) -> str:
+    """Format monétaire français : 1 234,56 €"""
+    return f"{v:,.2f} €".replace(",", " ").replace(".", ",")

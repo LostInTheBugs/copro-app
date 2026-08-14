@@ -9,11 +9,7 @@ from reportlab.platypus import (
 )
 
 from app.services.emailer import _date_fr
-from app.services.pdf_base import register_fonts, style, table_style, page_margins
-
-
-def fmt_eur(v: float) -> str:
-    return f"{v:,.2f} €".replace(",", " ").replace(".", ",")
+from app.services.pdf_base import register_fonts, style, table_style, page_margins, fmt_eur
 
 
 def generer_compte_gestion_pdf(copro, exercice, db) -> BytesIO:

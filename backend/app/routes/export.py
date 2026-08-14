@@ -13,6 +13,7 @@ from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
 from app.routes.copro import get_or_create_copro
 from app.services.compte_gestion import generer_compte_gestion_pdf
+from app.services.quittances import generer_quittances_pdf
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -27,6 +28,27 @@ def compte_gestion(exercice_id: int, db: Session = Depends(get_db), user: User =
         raise HTTPException(404, "Exercice introuvable")
     pdf = generer_compte_gestion_pdf(copro, ex, db)
     nom = f"Compte_de_gestion_{ex.annee}_{copro.nom.replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )
+
+
+@router.get("/quittances/{exercice_id}")
+def quittances(exercice_id: int, lot_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Quittances d'appels de fonds de l'exercice, groupées en un PDF (une page par lot).
+
+    - lot_id absent : toutes les quittances de l'exercice
+    - lot_id présent : quittance d'un seul lot
+    """
+    copro = get_or_create_copro(db, user)
+    ex = db.query(Exercice).filter(Exercice.id == exercice_id, Exercice.copropriete_id == copro.id).first()
+    if not ex:
+        raise HTTPException(404, "Exercice introuvable")
+    pdf = generer_quittances_pdf(copro, ex, db, lot_ids={lot_id} if lot_id else None)
+    suffixe = f"_lot{lot_id}" if lot_id else ""
+    nom = f"Quittances_{ex.annee}{suffixe}_{copro.nom.replace(' ', '_')}.pdf"
     return Response(
         content=pdf.getvalue(),
         media_type="application/pdf",
