@@ -324,6 +324,35 @@ class InvitationsResult(BaseModel):
     erreurs: List[str] = []
 
 
+# ---------- Relances d'impayés ----------
+class RelanceLotOut(BaseModel):
+    lot_id: int
+    lot_numero: str = ""
+    personne_id: Optional[int] = None
+    personne_nom: str = ""
+    personne_email: str = ""
+    appels_charges: float = 0.0
+    appels_fonds: float = 0.0
+    encaisse: float = 0.0
+    solde: float = 0.0
+
+
+class RelanceEnvoiIn(BaseModel):
+    lot_ids: List[int] = []
+
+
+class RelanceOut(BaseModel):
+    id: int
+    lot_id: int
+    lot_numero: str = ""
+    personne_nom: str = ""
+    personne_email: str = ""
+    date_envoi: datetime
+    statut: str = "envoye"
+    montant_du: float = 0.0
+    message: str = ""
+
+
 # ---------- SMTP ----------
 class SmtpConfigIn(BaseModel):
     smtp_host: Optional[str] = None

@@ -9,6 +9,7 @@ from app.models.ag import AG, Resolution, Vote, AgCreneau, AgCreneauVote
 from app.models.document import Document
 from app.models.carnet import Entretien
 from app.models.invitation import Invitation
+from app.models.relance import Relance
 
 __all__ = [
     "User", "Copropriete", "Personne", "Lot", "Exercice", "BudgetLine",

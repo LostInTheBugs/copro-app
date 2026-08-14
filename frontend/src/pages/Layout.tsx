@@ -11,6 +11,7 @@ const NAV = [
   { to: "/ag", label: "Assemblées", icon: "🗳" },
   { to: "/documents", label: "Documents", icon: "▤" },
   { to: "/carnet", label: "Carnet d'entretien", icon: "🔧" },
+  { to: "/relances", label: "Relances", icon: "📧" },
   { to: "/settings", label: "Réglages", icon: "⚙" },
 ];
 

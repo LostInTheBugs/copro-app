@@ -1,5 +1,6 @@
 """Envoi d'emails (convocations AG, tests SMTP) via smtplib (stdlib)."""
 import smtplib
+from datetime import date
 from email.message import EmailMessage
 
 
@@ -61,6 +62,38 @@ def _date_fr(d) -> str:
     mois = ["janvier", "février", "mars", "avril", "mai", "juin",
             "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
     return f"{jours[d.weekday()]} {d.day} {mois[d.month - 1]} {d.year}"
+
+
+def relance_texte(copro, lot_numero: str, personne_prenom: str, solde: float,
+                  appels_charges: float, appels_fonds: float, encaisse: float,
+                  syndic_nom: str) -> str:
+    """Corps du message de relance d'impayé (texte brut)."""
+    def fmt(v: float) -> str:
+        return f"{v:,.2f} €".replace(",", " ").replace(".", ",")
+    lignes = [
+        f"Bonjour {personne_prenom},",
+        "",
+        f"Le solde de votre lot {lot_numero} s'élève à {fmt(solde)} au {_date_fr(date.today())} :",
+        f"  • Appels de fonds (charges) : {fmt(appels_charges)}",
+        f"  • Fonds de travaux : {fmt(appels_fonds)}",
+        f"  • Encaissements reçus : {fmt(encaisse)}",
+        "",
+        "Merci de bien vouloir régulariser votre situation.",
+    ]
+    if copro.compte_bancaire_separe:
+        lignes += [
+            "",
+            "Règlement par virement à l'ordre du syndicat des copropriétaires :",
+            f"  {copro.compte_bancaire_separe}",
+        ]
+    lignes += [
+        "",
+        "N'hésitez pas à contacter le syndic pour toute question ou demande d'échéancier.",
+        "",
+        "Cordialement,",
+        f"{syndic_nom} — Syndic bénévole de {copro.nom}",
+    ]
+    return "\n".join(lignes)
 
 
 def convocation_texte(copro, ag, resolutions, syndic_nom: str) -> str:

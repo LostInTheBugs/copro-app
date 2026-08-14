@@ -197,6 +197,30 @@ export interface InvitationsResult {
   erreurs: string[];
 }
 
+export interface RelanceLot {
+  lot_id: number;
+  lot_numero: string;
+  personne_id: number | null;
+  personne_nom: string;
+  personne_email: string;
+  appels_charges: number;
+  appels_fonds: number;
+  encaisse: number;
+  solde: number;
+}
+
+export interface Relance {
+  id: number;
+  lot_id: number;
+  lot_numero: string;
+  personne_nom: string;
+  personne_email: string;
+  date_envoi: string;
+  statut: string;
+  montant_du: number;
+  message: string;
+}
+
 export interface Document {
   id: number;
   categorie: string;
