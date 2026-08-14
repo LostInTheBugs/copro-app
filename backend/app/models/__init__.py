@@ -10,6 +10,7 @@ from app.models.document import Document
 from app.models.carnet import Entretien
 from app.models.invitation import Invitation
 from app.models.relance import Relance
+from app.models.travaux import Travaux
 
 __all__ = [
     "User", "Copropriete", "Personne", "Lot", "Exercice", "BudgetLine",

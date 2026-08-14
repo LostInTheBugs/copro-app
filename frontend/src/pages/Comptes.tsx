@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, getToken } from "../api";
 import { useUser } from "../auth";
 import type { Exercice, BudgetLine, Appel, Mouvement, Recap, Lot } from "../types";
 import { fmtEUR, fmtDate } from "../types";
@@ -57,6 +57,15 @@ export default function Comptes() {
                 </option>
               ))}
             </Select>
+          )}
+          {exId && (
+            <a
+              href={`/api/export/compte-gestion/${exId}?token=${encodeURIComponent(getToken() ?? "")}`}
+              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              title="Télécharger le compte de gestion de l'exercice en PDF"
+            >
+              📊 Compte de gestion (PDF)
+            </a>
           )}
           {isSyndic && (
             <>

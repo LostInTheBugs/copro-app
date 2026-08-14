@@ -353,6 +353,27 @@ class RelanceOut(BaseModel):
     message: str = ""
 
 
+# ---------- Plan pluriannuel de travaux ----------
+class TravauxIn(BaseModel):
+    libelle: str
+    categorie: str = "autres"
+    annee: int
+    montant: float = 0.0
+    statut: str = "planifie"
+    notes: str = ""
+
+
+class TravauxOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    libelle: str
+    categorie: str = "autres"
+    annee: int
+    montant: float = 0.0
+    statut: str = "planifie"
+    notes: str = ""
+
+
 # ---------- SMTP ----------
 class SmtpConfigIn(BaseModel):
     smtp_host: Optional[str] = None

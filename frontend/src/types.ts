@@ -221,6 +221,16 @@ export interface Relance {
   message: string;
 }
 
+export interface Travaux {
+  id: number;
+  libelle: string;
+  categorie: string;
+  annee: number;
+  montant: number;
+  statut: string;
+  notes: string;
+}
+
 export interface Document {
   id: number;
   categorie: string;

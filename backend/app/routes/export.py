@@ -1,7 +1,7 @@
 import csv
 import io
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -12,8 +12,26 @@ from app.models.exercice import Exercice
 from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
 from app.routes.copro import get_or_create_copro
+from app.services.compte_gestion import generer_compte_gestion_pdf
 
 router = APIRouter(prefix="/api/export", tags=["export"])
+
+
+@router.get("/compte-gestion/{exercice_id}")
+def compte_gestion(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Compte de gestion annuel en PDF (présenté en AG pour approbation)."""
+    from app.models.copropriete import Copropriete
+    copro = get_or_create_copro(db, user)
+    ex = db.query(Exercice).filter(Exercice.id == exercice_id, Exercice.copropriete_id == copro.id).first()
+    if not ex:
+        raise HTTPException(404, "Exercice introuvable")
+    pdf = generer_compte_gestion_pdf(copro, ex, db)
+    nom = f"Compte_de_gestion_{ex.annee}_{copro.nom.replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )
 
 
 def _csv(data: list[list], headers: list[str]) -> StreamingResponse:

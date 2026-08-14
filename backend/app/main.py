@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from app.core.config import get_settings
 from app.core.database import init_db
-from app.routes import auth, copro, lots, comptes, ag, documents, carnet, export, email, relances
+from app.routes import auth, copro, lots, comptes, ag, documents, carnet, export, email, relances, travaux
 
 settings = get_settings()
 
@@ -27,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth, copro, lots, comptes, ag, documents, carnet, export, email, relances):
+for r in (auth, copro, lots, comptes, ag, documents, carnet, export, email, relances, travaux):
     app.include_router(r.router)
 
 
