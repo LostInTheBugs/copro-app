@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_syndic
@@ -11,7 +12,8 @@ from app.models.invitation import Invitation
 from app.models.copropriete import Copropriete
 from app.routes.copro import get_or_create_copro
 from app.services.country_rules import calculer_statut_resolution, MAJORITES
-from app.services.emailer import envoyer_email, convocation_texte, EmailError
+from app.services.emailer import envoyer_email, convocation_texte, _date_fr, EmailError
+from app.services.pv_pdf import generer_pv_pdf
 from app.schemas import (
     AGIn, AGOut, ResolutionIn, ResolutionOut, VoteIn, VoteOut, ResolutionResult,
     CreneauIn, CreneauOut, CreneauVoteIn, CreneauVoteOut,
@@ -314,3 +316,72 @@ def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = 
             envoyes += 1
     db.commit()
     return InvitationsResult(envoyes=envoyes, sans_email=sans_email, erreurs=erreurs)
+
+
+# ---------- Procès-verbal PDF ----------
+@router.get("/ag/{ag_id}/pv")
+def telecharger_pv(ag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Génère et télécharge le procès-verbal de l'AG en PDF."""
+    ag = db.query(AG).filter(AG.id == ag_id).first()
+    if not ag:
+        raise HTTPException(404, "AG introuvable")
+    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
+    if not copro:
+        raise HTTPException(404, "Copropriété introuvable")
+    pdf = generer_pv_pdf(copro, ag, db)
+    nom = f"PV_AG_{ag.date.strftime('%Y-%m-%d')}_{copro.nom.replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )
+
+
+@router.post("/ag/{ag_id}/pv/envoyer", response_model=InvitationsResult)
+def envoyer_pv(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
+    """Envoie le PV en PDF (pièce jointe) à tous les propriétaires ayant un email."""
+    ag = db.query(AG).filter(AG.id == ag_id).first()
+    if not ag:
+        raise HTTPException(404, "AG introuvable")
+    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
+    if not copro:
+        raise HTTPException(404, "Copropriété introuvable")
+
+    pdf = generer_pv_pdf(copro, ag, db)
+    nom_fichier = f"PV_AG_{ag.date.strftime('%Y-%m-%d')}.pdf"
+
+    lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
+    proprietaires = {lot.proprietaire_id for lot in lots if lot.proprietaire_id}
+    personnes = db.query(Personne).filter(Personne.id.in_(proprietaires)).all() if proprietaires else []
+
+    type_label = _TYPE_AG_LABEL.get(ag.type_ag, "l'assemblée générale")
+    corps = (
+        f"Bonjour,\n\n"
+        f"Veuillez trouver ci-joint le procès-verbal de {type_label} "
+        f"de la copropriété {copro.nom} du {_date_fr(ag.date)}.\n\n"
+        f"Conformément à l'article 17 du décret n°67-223 du 17 mars 1967, ce PV vous est notifié "
+        f"dans un délai de deux mois à compter de l'assemblée.\n\n"
+        f"Cordialement,\n{user.nom or 'Le syndic'}"
+    )
+    sujet = f"PV de {type_label} — {copro.nom} ({ag.date.strftime('%d/%m/%Y')})"
+
+    envoyes = 0
+    sans_email = 0
+    erreurs = []
+    for p in personnes:
+        if not p.email:
+            sans_email += 1
+            continue
+        try:
+            envoyer_email(copro, p.email, sujet, corps, [(nom_fichier, pdf.getvalue(), "application/pdf")])
+            envoyes += 1
+        except EmailError as e:
+            erreurs.append(f"{p.nom}: {e}")
+    return InvitationsResult(envoyes=envoyes, sans_email=sans_email, erreurs=erreurs)
+
+
+_TYPE_AG_LABEL = {
+    "annuelle": "l'assemblée générale annuelle",
+    "extraordinaire": "l'assemblée générale extraordinaire",
+    "consultation_ecrite": "la consultation écrite",
+}

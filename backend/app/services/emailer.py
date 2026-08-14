@@ -7,9 +7,11 @@ class EmailError(Exception):
     pass
 
 
-def envoyer_email(copro, destinataire: str, sujet: str, corps: str) -> None:
+def envoyer_email(copro, destinataire: str, sujet: str, corps: str,
+                  pieces_jointes: list[tuple[str, bytes, str]] | None = None) -> None:
     """Envoie un email via la config SMTP de la copropriété.
 
+    pieces_jointes : liste de (nom_fichier, contenu_bytes, mime_type).
     Lève EmailError si la config est incomplète ou l'envoi échoue.
     """
     if not copro.smtp_host or not copro.email_expediteur:
@@ -22,6 +24,8 @@ def envoyer_email(copro, destinataire: str, sujet: str, corps: str) -> None:
     msg["To"] = destinataire
     msg["Subject"] = sujet
     msg.set_content(corps, charset="utf-8")
+    for nom, contenu, mime in (pieces_jointes or []):
+        msg.add_attachment(contenu, maintype=mime.split("/")[0], subtype=mime.split("/")[1], filename=nom)
 
     port = copro.smtp_port or 587
     try:

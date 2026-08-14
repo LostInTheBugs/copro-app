@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, getToken } from "../api";
 import { useUser } from "../auth";
 import type { AG, Lot, Resolution, Majorite, Creneau, Invitation, InvitationsResult } from "../types";
 import { fmtDate, fmtDateTime, toLocalInput } from "../types";
@@ -104,6 +104,7 @@ function AgExtras({ agId, ag, lots, isSyndic, onAgChanged, onError }: {
   const [creneauModal, setCreneauModal] = useState(false);
   const [envoiInfo, setEnvoiInfo] = useState<InvitationsResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyPv, setBusyPv] = useState(false);
 
   const load = useCallback(async () => {
     const [c, i] = await Promise.all([
@@ -141,6 +142,19 @@ function AgExtras({ agId, ag, lots, isSyndic, onAgChanged, onError }: {
       onError(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function envoyerPv() {
+    setBusyPv(true);
+    setEnvoiInfo(null);
+    try {
+      const res = await api.post<InvitationsResult>(`/ag/${agId}/pv/envoyer`);
+      setEnvoiInfo(res);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyPv(false);
     }
   }
 
@@ -246,13 +260,27 @@ function AgExtras({ agId, ag, lots, isSyndic, onAgChanged, onError }: {
       {/* Invitations */}
       {(isSyndic || invitations.length > 0) && (
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">✉️ Convocations par email</p>
-            {isSyndic && (
-              <Button variant="secondary" className="px-2.5 py-1.5 text-xs" disabled={busy} onClick={envoyerInvitations}>
-                {busy ? "Envoi…" : invitations.length > 0 ? "Renvoyer les convocations" : "Envoyer les convocations"}
-              </Button>
-            )}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-slate-700">✉️ Convocations et procès-verbal</p>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/ag/${agId}/pv?token=${encodeURIComponent(getToken() ?? "")}`}
+                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                title="Télécharger le procès-verbal en PDF"
+              >
+                📄 PV (PDF)
+              </a>
+              {isSyndic && (
+                <Button variant="secondary" className="px-2.5 py-1.5 text-xs" disabled={busy} onClick={envoyerInvitations}>
+                  {busy ? "Envoi…" : invitations.length > 0 ? "Renvoyer les convocations" : "Envoyer les convocations"}
+                </Button>
+              )}
+              {isSyndic && (
+                <Button variant="secondary" className="px-2.5 py-1.5 text-xs" disabled={busyPv} onClick={envoyerPv}>
+                  {busyPv ? "Envoi…" : "✉️ Envoyer le PV"}
+                </Button>
+              )}
+            </div>
           </div>
           {envoiInfo && (
             <p className="mb-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
