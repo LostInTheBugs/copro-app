@@ -14,9 +14,15 @@ export default function Settings() {
   const [error, setError] = useState("");
   const [smtpTest, setSmtpTest] = useState<{ ok: boolean; detail: string } | null>(null);
   const [smtpBusy, setSmtpBusy] = useState(false);
+  const [prochaineDate, setProchaineDate] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<Copro>("/copro").then(setCopro).catch(() => {});
+    api.get<Copro>("/copro").then((c) => {
+      setCopro(c);
+      if (c.relance_auto) {
+        api.get<{ prochaine: string | null }>("/relances/prochaine").then((r) => setProchaineDate(r.prochaine ? new Date(r.prochaine).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null)).catch(() => {});
+      }
+    }).catch(() => {});
     api.get<User[]>("/auth/users").then(setUsers).catch(() => {});
   }, []);
 
@@ -36,6 +42,27 @@ export default function Settings() {
       });
       setCopro(updated);
       setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
+  async function saveRelanceAuto() {
+    if (!copro) return;
+    setSaved(false);
+    setError("");
+    try {
+      const updated = await api.put<Copro>("/copro", {
+        relance_auto: copro.relance_auto,
+        relance_frequence: copro.relance_frequence,
+        relance_jour: copro.relance_jour,
+        relance_heure: copro.relance_heure,
+        relance_minimum: copro.relance_minimum,
+      });
+      setCopro(updated);
+      setSaved(true);
+      const r = await api.get<{ prochaine: string | null }>("/relances/prochaine");
+      setProchaineDate(r.prochaine ? new Date(r.prochaine).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     }
@@ -168,6 +195,79 @@ export default function Settings() {
               {smtpTest.ok ? "✓ " : "✗ "}{smtpTest.detail}
             </p>
           )}
+        </div>
+      </Card>
+
+      <Card title="Relances automatiques (cron)">
+        <div className="space-y-3">
+          <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs leading-relaxed text-indigo-800">
+            Le serveur envoie tout seul les relances aux lots en retard, à la fréquence choisie.
+            Un lot n'est relancé que s'il est en retard <b>et</b> n'a pas déjà été relancé depuis
+            la dernière période. Il faut configurer l'envoi des emails (SMTP) ci-dessus.
+          </p>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={copro.relance_auto}
+              onChange={(e) => setCopro({ ...copro, relance_auto: e.target.checked })}
+            />
+            Activer les relances automatiques
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            <Select
+              label="Fréquence"
+              value={copro.relance_frequence}
+              onChange={(e) => setCopro({ ...copro, relance_frequence: e.target.value })}
+            >
+              <option value="hebdo">Hebdomadaire</option>
+              <option value="mensuel">Mensuelle</option>
+            </Select>
+            {copro.relance_frequence === "hebdo" ? (
+              <Select label="Jour de la semaine" value={String(copro.relance_jour)} onChange={(e) => setCopro({ ...copro, relance_jour: Number(e.target.value) })}>
+                <option value="1">Lundi</option>
+                <option value="2">Mardi</option>
+                <option value="3">Mercredi</option>
+                <option value="4">Jeudi</option>
+                <option value="5">Vendredi</option>
+                <option value="6">Samedi</option>
+                <option value="7">Dimanche</option>
+              </Select>
+            ) : (
+              <Input
+                label="Jour du mois (1-28)"
+                type="number"
+                min={1}
+                max={28}
+                value={copro.relance_jour}
+                onChange={(e) => setCopro({ ...copro, relance_jour: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
+              />
+            )}
+            <Select
+              label="Heure"
+              value={copro.relance_heure}
+              onChange={(e) => setCopro({ ...copro, relance_heure: e.target.value })}
+            >
+              {Array.from({ length: 24 }, (_, h) => [0, 30].map((m) => (
+                <option key={`${h}-${m}`} value={`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`}>
+                  {`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`}
+                </option>
+              )))}
+            </Select>
+          </div>
+          <Input
+            label="Seuil de relance (€) — ne relancer que si le solde dépasse ce montant"
+            type="number"
+            step="1"
+            min={0}
+            value={copro.relance_minimum}
+            onChange={(e) => setCopro({ ...copro, relance_minimum: Number(e.target.value) || 0 })}
+          />
+          {prochaineDate && (
+            <p className="text-xs text-slate-500">
+              ⏰ Prochaine relance automatique : <b className="text-slate-700">{prochaineDate}</b>
+            </p>
+          )}
+          {isSyndic && <Button onClick={saveRelanceAuto}>Enregistrer</Button>}
         </div>
       </Card>
 

@@ -10,4 +10,5 @@ pydantic[email-validator]==2.10.3
 pydantic-settings==2.7.0
 email-validator==2.2.0
 aiofiles==24.1.0
+apscheduler==3.10.4
 reportlab==4.2.5

@@ -26,6 +26,12 @@ class Copropriete(Base):
     smtp_password = Column(String, default="")
     email_expediteur = Column(String, default="")
     frontend_url = Column(String, default="")
+    # Relances automatiques (cron)
+    relance_auto = Column(Boolean, default=False)
+    relance_frequence = Column(String, default="hebdo")  # hebdo | mensuel
+    relance_jour = Column(Integer, default=1)  # 1-7 (hebdo, lundi=1) ou 1-28 (mensuel)
+    relance_heure = Column(String, default="09:00")  # "HH:00" ou "HH:30"
+    relance_minimum = Column(Float, default=0.0)  # seuil : ne relancer que les soldes > ce montant
     notes = Column(String, default="")
 
     users = relationship("User", back_populates="copropriete")

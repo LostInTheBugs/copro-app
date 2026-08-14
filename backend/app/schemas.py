@@ -56,6 +56,11 @@ class CoproOut(BaseModel):
     smtp_password: str = ""
     email_expediteur: str = ""
     frontend_url: str = ""
+    relance_auto: bool = False
+    relance_frequence: str = "hebdo"
+    relance_jour: int = 1
+    relance_heure: str = "09:00"
+    relance_minimum: float = 0.0
     notes: str = ""
 
 
@@ -75,6 +80,11 @@ class CoproUpdate(BaseModel):
     smtp_password: Optional[str] = None
     email_expediteur: Optional[str] = None
     frontend_url: Optional[str] = None
+    relance_auto: Optional[bool] = None
+    relance_frequence: Optional[str] = None
+    relance_jour: Optional[int] = None
+    relance_heure: Optional[str] = None
+    relance_minimum: Optional[float] = None
     notes: Optional[str] = None
 
 

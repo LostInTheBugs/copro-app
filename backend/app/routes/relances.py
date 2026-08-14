@@ -59,6 +59,32 @@ def liste_etat(db: Session = Depends(get_db), user: User = Depends(get_current_u
     return out
 
 
+def envoyer_relance_lot(db: Session, copro: Copropriete, e: dict, syndic_nom: str) -> str:
+    """Envoie la relance d'un lot et journalise (retour : envoye | sans_email | erreur)."""
+    p = e["personne"]
+    if not p or not p.email:
+        return "sans_email"
+    corps = relance_texte(
+        copro, e["lot"].numero, p.prenom or p.nom,
+        e["solde"], e["appels_charges"], e["appels_fonds"], e["encaisse"],
+        syndic_nom,
+    )
+    sujet = f"Rappel de règlement — lot {e['lot'].numero} — {copro.nom}"
+    try:
+        envoyer_email(copro, p.email, sujet, corps)
+        statut = "envoye"
+        message = ""
+    except EmailError as ex:
+        statut = "erreur"
+        message = str(ex)
+    db.add(Relance(
+        lot_id=e["lot"].id, personne_id=p.id if p else None,
+        date_envoi=datetime.now(), statut=statut,
+        montant_du=e["solde"], message=message,
+    ))
+    return statut
+
+
 @router.post("/envoyer", response_model=InvitationsResult)
 def envoyer_relances(data: RelanceEnvoiIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Envoie une relance par email aux propriétaires des lots sélectionnés (ceux en retard)."""
@@ -72,36 +98,24 @@ def envoyer_relances(data: RelanceEnvoiIn, db: Session = Depends(get_db), user: 
         e = lots_par_id.get(lot_id)
         if not e or e["solde"] <= 0.005:
             continue  # lot inconnu ou sans impayé
-        p = e["personne"]
-        if not p:
-            sans_email += 1
-            continue
-        if not p.email:
-            sans_email += 1
-            continue
-        corps = relance_texte(
-            copro, e["lot"].numero, p.prenom or p.nom,
-            e["solde"], e["appels_charges"], e["appels_fonds"], e["encaisse"],
-            user.nom or "Le syndic",
-        )
-        sujet = f"Rappel de règlement — lot {e['lot'].numero} — {copro.nom}"
-        try:
-            envoyer_email(copro, p.email, sujet, corps)
-            statut = "envoye"
-            message = ""
-        except EmailError as ex:
-            statut = "erreur"
-            message = str(ex)
-            erreurs.append(f"Lot {e['lot'].numero}: {ex}")
-        db.add(Relance(
-            lot_id=e["lot"].id, personne_id=p.id,
-            date_envoi=datetime.now(), statut=statut,
-            montant_du=e["solde"], message=message,
-        ))
+        statut = envoyer_relance_lot(db, copro, e, user.nom or "Le syndic")
         if statut == "envoye":
             envoyes += 1
+        elif statut == "sans_email":
+            sans_email += 1
+        else:
+            erreurs.append(f"Lot {e['lot'].numero}: {e['personne'].prenom} {e['personne'].nom}")
     db.commit()
     return InvitationsResult(envoyes=envoyes, sans_email=sans_email, erreurs=erreurs)
+
+
+@router.get("/prochaine")
+def prochaine(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Prochaine date d'envoi des relances automatiques (null si désactivé)."""
+    from app.services.relance_auto import prochaine_relance
+    copro = get_or_create_copro(db, user)
+    p = prochaine_relance(copro)
+    return {"prochaine": p.isoformat() if p else None}
 
 
 @router.get("/historique", response_model=list[RelanceOut])

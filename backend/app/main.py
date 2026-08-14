@@ -14,7 +14,10 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     os.makedirs(settings.upload_dir, exist_ok=True)
     init_db()
+    from app.core.scheduler import start_scheduler, stop_scheduler
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(title="CoproApp", version="0.1.0", lifespan=lifespan)

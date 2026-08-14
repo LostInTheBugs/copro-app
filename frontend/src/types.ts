@@ -26,6 +26,11 @@ export interface Copro {
   smtp_password: string;
   email_expediteur: string;
   frontend_url: string;
+  relance_auto: boolean;
+  relance_frequence: string;
+  relance_jour: number;
+  relance_heure: string;
+  relance_minimum: number;
   notes: string;
 }
 

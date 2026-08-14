@@ -40,6 +40,11 @@ _MIGRATIONS = [
     ("coproprietes", "smtp_password", "VARCHAR DEFAULT ''"),
     ("coproprietes", "email_expediteur", "VARCHAR DEFAULT ''"),
     ("coproprietes", "frontend_url", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "relance_auto", "BOOLEAN DEFAULT FALSE"),
+    ("coproprietes", "relance_frequence", "VARCHAR DEFAULT 'hebdo'"),
+    ("coproprietes", "relance_jour", "INTEGER DEFAULT 1"),
+    ("coproprietes", "relance_heure", "VARCHAR DEFAULT '09:00'"),
+    ("coproprietes", "relance_minimum", "FLOAT DEFAULT 0"),
 ]
 
 
