@@ -12,20 +12,12 @@ from app.services.emailer import _date_fr
 from app.services.pdf_base import register_fonts, style, table_style, page_margins, fmt_eur
 
 
-def generer_compte_gestion_pdf(copro, exercice, db) -> BytesIO:
-    """Compte de gestion annuel : synthèse, dépenses détaillées, annexe par lot, impayés, fonds de travaux."""
+def story_compte_gestion(copro, exercice, db, el) -> None:
+    """Ajoute le compte de gestion annuel (synthèse, dépenses, annexe, impayés) à un story existant."""
     from app.models.mouvement import Mouvement
     from app.models.appel import AppelLot
     from app.models.lot import Lot
     from app.models.personne import Personne
-
-    register_fonts()
-    buf = BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        title=f"Compte de gestion {copro.nom} {exercice.annee}",
-        **page_margins(),
-    )
 
     mouvements = db.query(Mouvement).filter(Mouvement.exercice_id == exercice.id).all()
     depenses = [m for m in mouvements if m.type == "depense"]
@@ -149,6 +141,18 @@ def generer_compte_gestion_pdf(copro, exercice, db) -> BytesIO:
         style("legal"),
     ))
 
+
+def generer_compte_gestion_pdf(copro, exercice, db) -> BytesIO:
+    """Compte de gestion annuel : synthèse, dépenses détaillées, annexe par lot, impayés, fonds de travaux."""
+    register_fonts()
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        title=f"Compte de gestion {copro.nom} {exercice.annee}",
+        **page_margins(),
+    )
+    el = []
+    story_compte_gestion(copro, exercice, db, el)
     doc.build(el)
     buf.seek(0)
     return buf

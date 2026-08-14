@@ -1,5 +1,6 @@
 """Socle commun PDF : polices DejaVu embarquées + styles reportlab."""
 import os
+from copy import copy
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
@@ -26,7 +27,7 @@ def register_fonts():
 
 
 def style(name: str, **kw) -> ParagraphStyle:
-    """Style partagé (muté sur demande, clone pour éviter les fuites)."""
+    """Style partagé, cloné à chaque appel pour éviter les fuites entre documents."""
     if name not in _STYLES:
         base = {
             "titre": dict(fontName="DejaVu-Bold", fontSize=15, leading=20, alignment=TA_CENTER, spaceAfter=4),
@@ -40,7 +41,7 @@ def style(name: str, **kw) -> ParagraphStyle:
             "th": dict(fontName="DejaVu-Bold", fontSize=9, leading=12),
         }[name]
         _STYLES[name] = ParagraphStyle(name, **base)
-    s = _STYLES[name]
+    s = copy(_STYLES[name])
     for k, v in kw.items():
         setattr(s, k, v)
     return s

@@ -15,10 +15,28 @@ from app.routes.copro import get_or_create_copro
 from app.routes.relances import _etat_lots
 from app.services.compte_gestion import generer_compte_gestion_pdf
 from app.services.quittances import generer_quittances_pdf
+from app.services.rapport_annuel import generer_rapport_annuel_pdf
 from app.services.emailer import envoyer_email, situation_texte, EmailError
 from app.schemas import InvitationsResult
 
 router = APIRouter(prefix="/api/export", tags=["export"])
+
+
+@router.get("/rapport-annuel/{exercice_id}")
+def rapport_annuel(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Rapport annuel complet en PDF : garde + KPI + compte de gestion + statistiques + PPT."""
+    from app.models.copropriete import Copropriete
+    copro = get_or_create_copro(db, user)
+    ex = db.query(Exercice).filter(Exercice.id == exercice_id, Exercice.copropriete_id == copro.id).first()
+    if not ex:
+        raise HTTPException(404, "Exercice introuvable")
+    pdf = generer_rapport_annuel_pdf(copro, ex, db)
+    nom = f"Rapport_annuel_{ex.annee}_{copro.nom.replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )
 
 
 @router.get("/compte-gestion/{exercice_id}")
@@ -138,25 +156,55 @@ def export_registre(db: Session = Depends(get_db), user: User = Depends(get_curr
 
 
 @router.get("/compte-gestion")
-def export_compte_gestion(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Compte de gestion annuel : appels, encaissements, dépenses par lot."""
+def export_compte_gestion(exercice_id: int | None = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Grand livre comptable de l'exercice en CSV (dates, appels par lot, mouvements, totaux)."""
     copro = get_or_create_copro(db, user)
-    ex = db.query(Exercice).filter(Exercice.copropriete_id == copro.id).order_by(Exercice.annee.desc()).first()
+    ex = None
+    if exercice_id:
+        ex = db.query(Exercice).filter(Exercice.id == exercice_id, Exercice.copropriete_id == copro.id).first()
+    if not ex:
+        ex = db.query(Exercice).filter(Exercice.copropriete_id == copro.id).order_by(Exercice.annee.desc()).first()
+    if not ex:
+        return _csv([], ["Date", "Libellé", "Lot", "Catégorie", "Débit (€)", "Crédit (€)"])
     rows = []
-    if ex:
-        appels = db.query(AppelFonds).filter(AppelFonds.exercice_id == ex.id).all()
-        for appel in appels:
-            for part in appel.parts:
-                lot = db.query(Lot).filter(Lot.id == part.lot_id).first()
-                rows.append([
-                    ex.annee, appel.libelle, "appel",
-                    lot.numero if lot else "", part.montant_charges, part.montant_fonds_travaux,
-                ])
-        mouvements = db.query(Mouvement).filter(Mouvement.exercice_id == ex.id).all()
-        for m in mouvements:
-            lot = db.query(Lot).filter(Lot.id == m.lot_id).first() if m.lot_id else None
-            rows.append([
-                ex.annee, m.libelle, m.type, lot.numero if lot else "copro",
-                m.montant if m.type == "depense" else 0, m.montant if m.type == "encaissement" else 0,
-            ])
-    return _csv(rows, ["Exercice", "Libellé", "Type", "Lot", "Dépense", "Encaissement"])
+    total_debit = 0.0
+    total_credit = 0.0
+
+    def ligne(date, libelle, lot, categorie, debit, credit):
+        nonlocal total_debit, total_credit
+        rows.append([date, libelle, lot, categorie,
+                     f"{debit:.2f}".replace(".", ",") if debit else "",
+                     f"{credit:.2f}".replace(".", ",") if credit else ""])
+        total_debit += debit or 0
+        total_credit += credit or 0
+
+    # Appels de fonds (une ligne par lot)
+    appels = db.query(AppelFonds).filter(AppelFonds.exercice_id == ex.id).order_by(AppelFonds.date_echeance, AppelFonds.id).all()
+    for appel in appels:
+        for part in appel.parts:
+            lot = db.query(Lot).filter(Lot.id == part.lot_id).first()
+            label = appel.libelle or "Appel de fonds"
+            ligne(appel.date_echeance.strftime("%d/%m/%Y") if appel.date_echeance else "",
+                  f"{label} — charges", f"lot {lot.numero}" if lot else "",
+                  "appel charges", part.montant_charges, 0)
+            if part.montant_fonds_travaux > 0:
+                ligne(appel.date_echeance.strftime("%d/%m/%Y") if appel.date_echeance else "",
+                      f"{label} — fonds de travaux", f"lot {lot.numero}" if lot else "",
+                      "appel fonds travaux", part.montant_fonds_travaux, 0)
+
+    # Mouvements (dépenses et encaissements)
+    mouvements = db.query(Mouvement).filter(Mouvement.exercice_id == ex.id).order_by(Mouvement.date, Mouvement.id).all()
+    for m in mouvements:
+        lot = db.query(Lot).filter(Lot.id == m.lot_id).first() if m.lot_id else None
+        cat = "fonds de travaux" if m.categorie == "fonds_travaux" else "charges"
+        if m.type == "depense":
+            ligne(m.date.strftime("%d/%m/%Y"), m.libelle, f"lot {lot.numero}" if lot else "copro",
+                  f"dépense {cat}", m.montant, 0)
+        else:
+            ligne(m.date.strftime("%d/%m/%Y"), m.libelle, f"lot {lot.numero}" if lot else "copro",
+                  f"encaissement {cat}", 0, m.montant)
+
+    rows.append(["TOTAL", "", "", "", f"{total_debit:.2f}".replace(".", ","), f"{total_credit:.2f}".replace(".", ",")])
+    rows.append(["", "Solde (débits − crédits)", "", "", "",
+                 f"{(total_debit - total_credit):.2f}".replace(".", ",")])
+    return _csv(rows, ["Date", "Libellé", "Lot", "Catégorie", "Débit (€)", "Crédit (€)"])

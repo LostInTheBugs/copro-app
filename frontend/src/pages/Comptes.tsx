@@ -74,6 +74,20 @@ export default function Comptes() {
               >
                 📊 Compte de gestion (PDF)
               </a>
+              <a
+                href={`/api/export/rapport-annuel/${exId}?token=${encodeURIComponent(getToken() ?? "")}`}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                title="Rapport annuel complet : garde + compte de gestion + statistiques + plan de travaux (PDF)"
+              >
+                📑 Rapport annuel (PDF)
+              </a>
+              <a
+                href={`/api/export/compte-gestion?exercice_id=${exId}&token=${encodeURIComponent(getToken() ?? "")}`}
+                className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                title="Grand livre comptable de l'exercice au format CSV (Excel)"
+              >
+                📥 CSV
+              </a>
             </div>
           )}
           {isSyndic && (
