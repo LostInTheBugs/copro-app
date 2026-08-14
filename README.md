@@ -45,11 +45,18 @@ Premier lancement : créer le compte syndic via `POST /api/auth/register` (ouver
 
 ## Déploiement (serveur)
 
+Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur [IP], Caddy TLS Let's Encrypt).
+
 ```bash
-git clone git@github.com:LostInTheBugs/copro-app.git
-cd copro-app
-cp .env.example .env   # éditer SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
-docker compose up -d --build
+# Sur serveur (utilisateur admin, sudo NOPASSWD pour docker)
+cd /opt/copro-app
+git pull                                  # mise à jour du code
+# Builder le frontend sur la machine de dev puis :
+tar czf - -C frontend dist | ssh serveur "cd /opt/copro-app && mkdir -p frontend_dist && tar xzf - -C frontend_dist && mv -f frontend_dist/dist/* frontend_dist/ 2>/dev/null; rmdir frontend_dist/dist 2>/dev/null"
+sudo docker compose up -d --build          # rebuild backend si nécessaire
 ```
 
-Services : `caddy` (TLS Let's Encrypt) → `backend` (FastAPI + frontend statique) → `postgres`.
+- `.env` (racine) : `POSTGRES_PASSWORD` + `COPRO_SECRET_KEY` (jamais commités)
+- Attention : pas de `docker` sans sudo pour admin → toujours `sudo docker compose …`
+- Caddy redémarre automatiquement en cas d'échec de certificat (retry 60 s)
+- Mise à jour du dist frontend : copier dans `frontend_dist/` (monté en lecture seule dans le conteneur)
