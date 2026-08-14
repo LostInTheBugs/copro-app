@@ -19,8 +19,8 @@ def _copro_principale(db: Session, user: User) -> int | None:
 
 @router.post("/register", response_model=TokenResponse)
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    """Création du premier compte (syndic). Fermé dès qu'un utilisateur existe."""
-    if db.query(User).count() > 0:
+    """Création du premier compte (syndic). Fermé dès qu'un utilisateur non-démo existe."""
+    if db.query(User).filter(User.is_demo == False).count() > 0:  # noqa: E712
         raise HTTPException(403, "Inscription fermée : un compte existe déjà")
     user = User(
         email=req.email.lower().strip(),

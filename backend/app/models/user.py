@@ -19,6 +19,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     nom = Column(String, nullable=False)
     role = Column(String, default="membre")  # syndic | membre
+    is_demo = Column(Boolean, default=False)  # compte de démonstration (n'ouvre pas/ne ferme pas l'inscription)
     copropriete_id = Column(Integer, ForeignKey("coproprietes.id"), nullable=True)
     copropriete = relationship("Copropriete", back_populates="users")
     coproprietes = relationship(

@@ -6,6 +6,20 @@ français (art. 41-8 de la loi du 10 juillet 1965, issu de l'ordonnance n° 2019
 **< 15 000 €**/an) et **utilisable sans limite de lots** — 12 lots, 15 lots ou plus :
 comptabilité simplifiée, consultation écrite, majorités de vote automatiques.
 
+## 🎮 Démo
+
+**https://copro.cloudfr.net** — un compte de démonstration est préconfiguré avec
+deux copropriétés complètes (Paris : 5 lots, comptes 2024-2026, AG + PV, documents,
+plan pluriannuel de travaux ; Lyon : 3 lots) :
+
+| Champ | Valeur |
+|-------|--------|
+| Email | `demo@copro.cloudfr.net` |
+| Mot de passe | `demo123456` |
+
+Le compte démo ne bloque pas l'inscription : le premier compte réel peut toujours
+se créer normalement depuis la page de connexion.
+
 ## Fonctionnalités
 
 - **Immeuble & lots** : lots, tantièmes (millièmes), propriétaires, locataires
