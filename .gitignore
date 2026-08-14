@@ -17,3 +17,6 @@ uploads/
 # Divers
 .DS_Store
 *.log
+
+# TS build cache
+*.tsbuildinfo
