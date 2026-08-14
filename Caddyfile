@@ -1,0 +1,3 @@
+copro.cloudfr.net {
+	reverse_proxy backend:8000
+}
