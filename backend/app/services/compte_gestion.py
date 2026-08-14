@@ -28,7 +28,6 @@ def story_compte_gestion(copro, exercice, db, el) -> None:
     budget = sum(b.montant for b in exercice.budget_lines)
     lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
 
-    el = []
     el.append(Paragraph("COMPTE DE GESTION DE L'EXERCICE", style("titre", fontSize=15)))
     el.append(Paragraph(f"Copropriété {copro.nom} — exercice {exercice.annee}", style("sous_titre")))
     if copro.adresse:
