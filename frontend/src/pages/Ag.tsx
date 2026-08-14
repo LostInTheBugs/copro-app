@@ -62,6 +62,12 @@ export default function Ag() {
                 <Badge color={ag.statut === "terminee" ? "green" : ag.statut === "convoquee" ? "indigo" : "amber"}>
                   {ag.statut === "terminee" ? "Terminée" : ag.statut === "convoquee" ? "Convoquée" : "Projet"}
                 </Badge>
+                {ag.rappel_jours > 0 && !ag.convocation_envoyee && ag.statut !== "terminee" && (
+                  <Badge color="indigo">⏰ Convocation auto J-{ag.rappel_jours}</Badge>
+                )}
+                {ag.convocation_envoyee && (
+                  <Badge color="green">📨 Convocation envoyée</Badge>
+                )}
                 {isSyndic && (
                   <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setModal({ type: "resolution", agId: ag.id })}>
                     + Résolution
@@ -445,9 +451,10 @@ function AgModal({ onClose, onSaved, onError }: { onClose: () => void; onSaved: 
   const [typeAg, setTypeAg] = useState("annuelle");
   const [statut, setStatut] = useState("projet");
   const [lieu, setLieu] = useState("");
+  const [rappelJours, setRappelJours] = useState("15");
   async function save() {
     try {
-      await api.post("/ag", { date, heure, type_ag: typeAg, statut, lieu, notes: "" });
+      await api.post("/ag", { date, heure, type_ag: typeAg, statut, lieu, notes: "", rappel_jours: Number(rappelJours) || 0 });
       onSaved();
     } catch (e) { onError(e instanceof Error ? e.message : "Erreur"); }
   }
@@ -469,6 +476,18 @@ function AgModal({ onClose, onSaved, onError }: { onClose: () => void; onSaved: 
           <option value="terminee">Terminée</option>
         </Select>
         <Input label="Lieu" value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Chez M. Durand" />
+        <Input
+          label="Envoi automatique de la convocation (jours avant l'AG, 0 = désactivé)"
+          type="number"
+          min={0}
+          max={90}
+          value={rappelJours}
+          onChange={(e) => setRappelJours(e.target.value)}
+        />
+        <p className="text-xs text-slate-500">
+          ⏰ Le serveur enverra les convocations par email <b>{rappelJours === "0" || !rappelJours ? "— désactivé" : `${rappelJours} jours avant`}</b> l'AG.
+          Délai légal : 15 jours minimum (art. 9 décret n°67-223).
+        </p>
         {typeAg !== "consultation_ecrite" && (
           <p className="text-xs text-slate-500">
             Astuce : laissez la date à définir et proposez plusieurs créneaux dans le sondage ci-dessous — l'AG se mettra à jour automatiquement quand vous en choisirez un.

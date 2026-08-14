@@ -233,6 +233,7 @@ class AGIn(BaseModel):
     statut: str = "projet"
     lieu: str = ""
     notes: str = ""
+    rappel_jours: int = 15  # envoi auto de la convocation N jours avant (0 = désactivé)
 
 
 class VoteIn(BaseModel):
@@ -287,6 +288,8 @@ class AGOut(BaseModel):
     statut: str = "projet"
     lieu: str = ""
     notes: str = ""
+    rappel_jours: int = 15
+    convocation_envoyee: bool = False
     resolutions: List[ResolutionOut] = []
 
 

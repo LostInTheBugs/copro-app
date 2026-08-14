@@ -45,6 +45,8 @@ _MIGRATIONS = [
     ("coproprietes", "relance_jour", "INTEGER DEFAULT 1"),
     ("coproprietes", "relance_heure", "VARCHAR DEFAULT '09:00'"),
     ("coproprietes", "relance_minimum", "FLOAT DEFAULT 0"),
+    ("ags", "rappel_jours", "INTEGER DEFAULT 15"),
+    ("ags", "convocation_envoyee", "BOOLEAN DEFAULT FALSE"),
 ]
 
 

@@ -38,6 +38,7 @@ def _ag_out(db: Session, ag: AG) -> AGOut:
     return AGOut(
         id=ag.id, date=ag.date, heure=ag.heure, type_ag=ag.type_ag, statut=ag.statut,
         lieu=ag.lieu, notes=ag.notes,
+        rappel_jours=ag.rappel_jours or 0, convocation_envoyee=bool(ag.convocation_envoyee),
         resolutions=[_resolution_out(db, r) for r in sorted(ag.resolutions, key=lambda x: x.numero)],
     )
 
@@ -272,16 +273,8 @@ def list_invitations(ag_id: int, db: Session = Depends(get_db), user: User = Dep
     return out
 
 
-@router.post("/ag/{ag_id}/invitations", response_model=InvitationsResult)
-def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
+def envoyer_convocations(db: Session, ag: AG, copro: Copropriete, syndic_nom: str, marquer_envoyee: bool = True) -> InvitationsResult:
     """Envoie la convocation par email à tous les propriétaires ayant une adresse."""
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
-    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
-    if not copro:
-        raise HTTPException(404, "Copropriété introuvable")
-
     lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
     proprietaires = {}
     for lot in lots:
@@ -289,7 +282,7 @@ def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = 
             proprietaires[lot.proprietaire_id] = True
     personnes = db.query(Personne).filter(Personne.id.in_(list(proprietaires.keys()))).all() if proprietaires else []
 
-    corps = convocation_texte(copro, ag, ag.resolutions, user.nom)
+    corps = convocation_texte(copro, ag, ag.resolutions, syndic_nom)
     sujet = f"Convocation {ag.type_ag.replace('_', ' ')} — {copro.nom} ({ag.date.strftime('%d/%m/%Y')})"
 
     envoyes = 0
@@ -314,8 +307,22 @@ def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = 
         db.add(inv)
         if statut == "envoye":
             envoyes += 1
+    if marquer_envoyee:
+        ag.convocation_envoyee = True
     db.commit()
     return InvitationsResult(envoyes=envoyes, sans_email=sans_email, erreurs=erreurs)
+
+
+@router.post("/ag/{ag_id}/invitations", response_model=InvitationsResult)
+def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
+    """Envoie la convocation par email à tous les propriétaires ayant une adresse."""
+    ag = db.query(AG).filter(AG.id == ag_id).first()
+    if not ag:
+        raise HTTPException(404, "AG introuvable")
+    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
+    if not copro:
+        raise HTTPException(404, "Copropriété introuvable")
+    return envoyer_convocations(db, ag, copro, user.nom or "Le syndic")
 
 
 # ---------- Procès-verbal PDF ----------

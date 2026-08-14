@@ -13,6 +13,9 @@ class AG(Base):
     statut = Column(String, default="projet")  # projet | convoquee | terminee
     lieu = Column(String, default="")
     notes = Column(Text, default="")
+    # Rappel automatique de la convocation (cron)
+    rappel_jours = Column(Integer, default=15)  # envoi auto N jours avant la date (0 = désactivé)
+    convocation_envoyee = Column(Boolean, default=False)  # déjà convoquée (manuelle ou auto)
 
     copropriete = relationship("Copropriete", back_populates="ags")
     resolutions = relationship("Resolution", back_populates="ag", cascade="all, delete-orphan")

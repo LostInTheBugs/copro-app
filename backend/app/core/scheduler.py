@@ -6,6 +6,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.database import SessionLocal
 from app.services.relance_auto import run_relances_auto
+from app.services.rappels_ag import run_rappels_ag
 
 log = logging.getLogger("uvicorn.error")
 
@@ -42,7 +43,10 @@ def _tick_relances() -> None:
         stats = run_relances_auto(db)
         if stats["copros"] > 0 or stats["envoyes"] > 0:
             log.info("Relances auto : %s", stats)
+        stats_ag = run_rappels_ag(db)
+        if stats_ag["ag_rappel"] > 0:
+            log.info("Rappels AG : %s", stats_ag)
     except Exception:
-        log.exception("Erreur pendant les relances automatiques")
+        log.exception("Erreur pendant les tâches automatiques")
     finally:
         db.close()

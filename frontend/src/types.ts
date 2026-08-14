@@ -170,6 +170,8 @@ export interface AG {
   statut: string;
   lieu: string;
   notes: string;
+  rappel_jours: number;
+  convocation_envoyee: boolean;
   resolutions: Resolution[];
 }
 
