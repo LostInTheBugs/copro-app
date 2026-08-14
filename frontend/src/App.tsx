@@ -13,6 +13,7 @@ import Carnet from "./pages/Carnet";
 import Settings from "./pages/Settings";
 import Relances from "./pages/Relances";
 import TravauxPage from "./pages/Travaux";
+import Consolide from "./pages/Consolide";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="carnet" element={<Carnet />} />
           <Route path="relances" element={<Relances />} />
           <Route path="travaux" element={<TravauxPage />} />
+          <Route path="consolide" element={<Consolide />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
