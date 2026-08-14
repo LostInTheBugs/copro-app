@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import { useUser } from "../auth";
-import type { AG, Lot, Resolution, Majorite } from "../types";
-import { fmtDate } from "../types";
+import type { AG, Lot, Resolution, Majorite, Creneau, Invitation, InvitationsResult } from "../types";
+import { fmtDate, fmtDateTime, toLocalInput } from "../types";
 import { Button, Card, Input, Modal, Select, Badge, Empty } from "../components/ui";
 
 export default function Ag() {
@@ -14,7 +14,7 @@ export default function Ag() {
   const [modal, setModal] = useState<null | { type: "ag" } | { type: "resolution"; agId: number }>(null);
   const [error, setError] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     const [a, l, m] = await Promise.all([
       api.get<AG[]>("/ag"),
       api.get<Lot[]>("/lots"),
@@ -23,8 +23,8 @@ export default function Ag() {
     setAgs(a);
     setLots(l);
     setMajorites(m);
-  }
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load().catch(() => {}); }, [load]);
 
   const total = lots.reduce((s, l) => s + l.tantiemes, 0);
 
@@ -34,7 +34,7 @@ export default function Ag() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Assemblées générales</h1>
           <p className="text-sm text-slate-500">
-            Résolutions, votes par lots et calcul automatique des majorités légales
+            Sondage de dates, convocations par email, votes et majorités légales
           </p>
         </div>
         {isSyndic && <Button onClick={() => setModal({ type: "ag" })}>+ Nouvelle AG</Button>}
@@ -43,7 +43,7 @@ export default function Ag() {
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {ags.length === 0 ? (
-        <Empty text="Aucune assemblée. Créez la prochaine AG annuelle : convocation, ordre du jour, votes et PV." />
+        <Empty text="Aucune assemblée. Créez la prochaine AG : proposez des dates, envoyez les convocations, suivez les votes." />
       ) : (
         ags.map((ag) => (
           <Card
@@ -51,9 +51,10 @@ export default function Ag() {
             title={
               <span className="flex items-center gap-2">
                 {ag.type_ag === "consultation_ecrite" ? "Consultation écrite" : ag.type_ag === "extraordinaire" ? "AG extraordinaire" : "AG annuelle"}
-                <span className="text-slate-500">·</span>
+                <span className="text-slate-400">·</span>
                 {fmtDate(ag.date)}
-                {ag.lieu && <span className="font-normal text-slate-500">· {ag.lieu}</span>}
+                {ag.heure && <span className="font-normal text-slate-400">à {ag.heure}</span>}
+                {ag.lieu && <span className="font-normal text-slate-400">· {ag.lieu}</span>}
               </span>
             }
             action={
@@ -69,15 +70,18 @@ export default function Ag() {
               </div>
             }
           >
-            {ag.resolutions.length === 0 ? (
-              <Empty text="Aucune résolution à l'ordre du jour." />
-            ) : (
-              <div className="space-y-4">
-                {ag.resolutions.map((r) => (
-                  <ResolutionCard key={r.id} r={r} lots={lots} total={total} majorites={majorites} isSyndic={isSyndic} onChanged={load} onError={setError} />
-                ))}
-              </div>
-            )}
+            <div className="space-y-5">
+              {ag.resolutions.length === 0 ? (
+                <Empty text="Aucune résolution à l'ordre du jour." />
+              ) : (
+                <div className="space-y-4">
+                  {ag.resolutions.map((r) => (
+                    <ResolutionCard key={r.id} r={r} lots={lots} total={total} majorites={majorites} isSyndic={isSyndic} onChanged={load} onError={setError} />
+                  ))}
+                </div>
+              )}
+              <AgExtras agId={ag.id} ag={ag} lots={lots} isSyndic={isSyndic} onAgChanged={load} onError={setError} />
+            </div>
           </Card>
         ))
       )}
@@ -87,6 +91,226 @@ export default function Ag() {
         <ResolutionModal agId={modal.agId} majorites={majorites} onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} onError={setError} />
       )}
     </div>
+  );
+}
+
+// ---------- Sondage de dates + invitations ----------
+function AgExtras({ agId, ag, lots, isSyndic, onAgChanged, onError }: {
+  agId: number; ag: AG; lots: Lot[]; isSyndic: boolean;
+  onAgChanged: () => void; onError: (e: string) => void;
+}) {
+  const [creneaux, setCreneaux] = useState<Creneau[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [creneauModal, setCreneauModal] = useState(false);
+  const [envoiInfo, setEnvoiInfo] = useState<InvitationsResult | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const [c, i] = await Promise.all([
+      api.get<Creneau[]>(`/ag/${agId}/creneaux`),
+      api.get<Invitation[]>(`/ag/${agId}/invitations`),
+    ]);
+    setCreneaux(c);
+    setInvitations(i);
+  }, [agId]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+
+  async function voteCreneau(creneauId: number, lotId: number, dispo: boolean) {
+    try {
+      await api.post(`/creneaux/${creneauId}/votes`, { lot_id: lotId, dispo });
+      load();
+    } catch (e) { onError(e instanceof Error ? e.message : "Erreur"); }
+  }
+
+  async function choisir(creneauId: number) {
+    try {
+      await api.post(`/ag/${agId}/choisir-creneau/${creneauId}`);
+      load();
+      onAgChanged();
+    } catch (e) { onError(e instanceof Error ? e.message : "Erreur"); }
+  }
+
+  async function envoyerInvitations() {
+    setBusy(true);
+    setEnvoiInfo(null);
+    try {
+      const res = await api.post<InvitationsResult>(`/ag/${agId}/invitations`);
+      setEnvoiInfo(res);
+      load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (creneaux.length === 0 && invitations.length === 0 && !isSyndic) return null;
+
+  return (
+    <div className="space-y-4 border-t border-slate-100 pt-4">
+      {/* Sondage de dates */}
+      {creneaux.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">📅 Sondage de dates — disponibilités par lot</p>
+            {isSyndic && (
+              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setCreneauModal(true)}>
+                + Créneau
+              </Button>
+            )}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2 font-medium">Lot</th>
+                  {creneaux.map((c) => {
+                    const dispo = c.votes.filter((v) => v.dispo).length;
+                    return (
+                      <th key={c.id} className="px-3 py-2 text-center font-medium">
+                        <span className="block whitespace-nowrap">{fmtDateTime(c.debut)}</span>
+                        <span className={`block text-[11px] font-bold ${dispo === lots.length ? "text-emerald-600" : dispo > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                          {dispo}/{lots.length} dispo
+                        </span>
+                      </th>
+                    );
+                  })}
+                  {isSyndic && <th className="px-2 py-2" />}
+                </tr>
+              </thead>
+              <tbody>
+                {lots.map((lot) => (
+                  <tr key={lot.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-3 py-2 font-medium text-slate-700">Lot {lot.numero}</td>
+                    {creneaux.map((c) => {
+                      const v = c.votes.find((x) => x.lot_id === lot.id);
+                      const dispo = v?.dispo ?? false;
+                      return (
+                        <td key={c.id} className="px-3 py-2 text-center">
+                          {isSyndic ? (
+                            <button
+                              onClick={() => voteCreneau(c.id, lot.id, !dispo)}
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                                dispo ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                              }`}
+                              title={dispo ? "Disponible — cliquer pour retirer" : "Indisponible — cliquer pour marquer dispo"}
+                            >
+                              {dispo ? "✓" : "·"}
+                            </button>
+                          ) : (
+                            <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ${dispo ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
+                              {dispo ? "✓" : "·"}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {isSyndic && <td className="px-2 py-2 text-right" />}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isSyndic && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {creneaux.map((c) => {
+                const dispo = c.votes.filter((v) => v.dispo).length;
+                return (
+                  <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs ring-1 ring-slate-200">
+                    {fmtDateTime(c.debut)}
+                    <button
+                      onClick={() => choisir(c.id)}
+                      className="font-semibold text-indigo-600 hover:text-indigo-700"
+                      title="Retenir ce créneau pour l'AG"
+                    >
+                      Choisir
+                    </button>
+                    <button
+                      onClick={async () => { await api.del(`/creneaux/${c.id}`); load(); }}
+                      className="text-slate-400 hover:text-red-600"
+                      title="Supprimer ce créneau"
+                    >
+                      ✕
+                    </button>
+                    <span className={dispo === lots.length ? "font-bold text-emerald-600" : "font-medium text-slate-500"}>
+                      {dispo}/{lots.length}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Invitations */}
+      {(isSyndic || invitations.length > 0) && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">✉️ Convocations par email</p>
+            {isSyndic && (
+              <Button variant="secondary" className="px-2.5 py-1.5 text-xs" disabled={busy} onClick={envoyerInvitations}>
+                {busy ? "Envoi…" : invitations.length > 0 ? "Renvoyer les convocations" : "Envoyer les convocations"}
+              </Button>
+            )}
+          </div>
+          {envoiInfo && (
+            <p className="mb-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
+              {envoiInfo.envoyes} email(s) envoyé(s)
+              {envoiInfo.sans_email > 0 && ` · ${envoiInfo.sans_email} propriétaire(s) sans adresse email`}
+              {envoiInfo.erreurs.length > 0 && (
+                <span className="block text-red-700">Échecs : {envoiInfo.erreurs.join(" · ")}</span>
+              )}
+            </p>
+          )}
+          {invitations.length > 0 && (
+            <ul className="space-y-1 text-xs text-slate-500">
+              {invitations.slice(0, 10).map((i) => (
+                <li key={i.id} className="flex items-center gap-2">
+                  <span className="font-medium text-slate-700">{i.personne_nom}</span>
+                  <span className="text-slate-400">({i.personne_email})</span>
+                  <span className="ml-auto">{fmtDateTime(i.date_envoi)}</span>
+                  {i.statut === "envoye" ? <Badge color="green">envoyé</Badge> : <Badge color="red">erreur</Badge>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {creneauModal && (
+        <CreneauModal onClose={() => setCreneauModal(false)} onSaved={() => { setCreneauModal(false); load(); }} onError={onError} agId={agId} />
+      )}
+    </div>
+  );
+}
+
+function CreneauModal({ agId, onClose, onSaved, onError }: {
+  agId: number; onClose: () => void; onSaved: () => void; onError: (e: string) => void;
+}) {
+  const [debut, setDebut] = useState(toLocalInput(new Date(Date.now() + 7 * 86400000)));
+  const [fin, setFin] = useState("");
+  async function save() {
+    try {
+      await api.post(`/ag/${agId}/creneaux`, {
+        debut: new Date(debut).toISOString(),
+        fin: fin ? new Date(fin).toISOString() : null,
+      });
+      onSaved();
+    } catch (e) { onError(e instanceof Error ? e.message : "Erreur"); }
+  }
+  return (
+    <Modal open title="Proposer un créneau" onClose={onClose}>
+      <div className="space-y-3">
+        <Input label="Date et heure de début" type="datetime-local" value={debut} onChange={(e) => setDebut(e.target.value)} />
+        <Input label="Fin (optionnel)" type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
+        <p className="text-xs text-slate-500">Proposez plusieurs créneaux : les copropriétaires indiqueront leurs disponibilités.</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button onClick={save}>Ajouter</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -189,19 +413,23 @@ function ResolutionCard({ r, lots, total, majorites, isSyndic, onChanged, onErro
 
 function AgModal({ onClose, onSaved, onError }: { onClose: () => void; onSaved: () => void; onError: (e: string) => void }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [heure, setHeure] = useState("");
   const [typeAg, setTypeAg] = useState("annuelle");
   const [statut, setStatut] = useState("projet");
   const [lieu, setLieu] = useState("");
   async function save() {
     try {
-      await api.post("/ag", { date, type_ag: typeAg, statut, lieu, notes: "" });
+      await api.post("/ag", { date, heure, type_ag: typeAg, statut, lieu, notes: "" });
       onSaved();
     } catch (e) { onError(e instanceof Error ? e.message : "Erreur"); }
   }
   return (
     <Modal open title="Nouvelle assemblée" onClose={onClose}>
       <div className="space-y-3">
-        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input label="Heure (si déjà fixée)" type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
+        </div>
         <Select label="Type" value={typeAg} onChange={(e) => setTypeAg(e.target.value)}>
           <option value="annuelle">AG annuelle</option>
           <option value="extraordinaire">AG extraordinaire</option>
@@ -213,6 +441,11 @@ function AgModal({ onClose, onSaved, onError }: { onClose: () => void; onSaved: 
           <option value="terminee">Terminée</option>
         </Select>
         <Input label="Lieu" value={lieu} onChange={(e) => setLieu(e.target.value)} placeholder="Chez M. Durand" />
+        {typeAg !== "consultation_ecrite" && (
+          <p className="text-xs text-slate-500">
+            Astuce : laissez la date à définir et proposez plusieurs créneaux dans le sondage ci-dessous — l'AG se mettra à jour automatiquement quand vous en choisirez un.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Annuler</Button>
           <Button onClick={save}>Créer</Button>

@@ -1,0 +1,104 @@
+"""Envoi d'emails (convocations AG, tests SMTP) via smtplib (stdlib)."""
+import smtplib
+from email.message import EmailMessage
+
+
+class EmailError(Exception):
+    pass
+
+
+def envoyer_email(copro, destinataire: str, sujet: str, corps: str) -> None:
+    """Envoie un email via la config SMTP de la copropriété.
+
+    Lève EmailError si la config est incomplète ou l'envoi échoue.
+    """
+    if not copro.smtp_host or not copro.email_expediteur:
+        raise EmailError(
+            "Configuration SMTP incomplète : renseignez le serveur et l'expéditeur "
+            "dans Réglages → Envoi des emails."
+        )
+    msg = EmailMessage()
+    msg["From"] = copro.email_expediteur
+    msg["To"] = destinataire
+    msg["Subject"] = sujet
+    msg.set_content(corps, charset="utf-8")
+
+    port = copro.smtp_port or 587
+    try:
+        if port == 465:
+            with smtplib.SMTP_SSL(copro.smtp_host, port, timeout=20) as server:
+                _auth(server, copro)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(copro.smtp_host, port, timeout=20) as server:
+                server.ehlo()
+                if port == 587:
+                    server.starttls()
+                    server.ehlo()
+                _auth(server, copro)
+                server.send_message(msg)
+    except EmailError:
+        raise
+    except Exception as e:
+        raise EmailError(f"Échec de l'envoi : {e}") from e
+
+
+def _auth(server, copro):
+    if copro.smtp_user:
+        try:
+            server.login(copro.smtp_user, copro.smtp_password or "")
+        except smtplib.SMTPAuthenticationError as e:
+            raise EmailError(f"Authentification SMTP refusée ({e.smtp_code})") from e
+
+
+def _date_fr(d) -> str:
+    """Formatage de date en français (indépendant de la locale du serveur)."""
+    jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    mois = ["janvier", "février", "mars", "avril", "mai", "juin",
+            "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+    return f"{jours[d.weekday()]} {d.day} {mois[d.month - 1]} {d.year}"
+
+
+def convocation_texte(copro, ag, resolutions, syndic_nom: str) -> str:
+    """Corps du message de convocation (texte brut)."""
+    type_label = {
+        "annuelle": "Assemblée Générale annuelle",
+        "extraordinaire": "Assemblée Générale extraordinaire",
+        "consultation_ecrite": "consultation écrite",
+    }.get(ag.type_ag, "Assemblée Générale")
+
+    lignes = [
+        f"Bonjour,",
+        "",
+        f"Vous êtes convoqué(e) à {_article(type_label)} de la copropriété {copro.nom}.",
+        "",
+    ]
+    if ag.type_ag == "consultation_ecrite":
+        lignes.append("Cette consultation se déroule par écrit : vos réponses sont attendues "
+                      "avant la date limite indiquée.")
+    else:
+        date_str = _date_fr(ag.date)
+        heure = ag.heure or "à définir"
+        lieu = ag.lieu or "à définir"
+        lignes.append(f"Date : {date_str} à {heure}")
+        lignes.append(f"Lieu : {lieu}")
+    lignes += ["", "Ordre du jour :"]
+    if resolutions:
+        for r in sorted(resolutions, key=lambda x: x.numero):
+            lignes.append(f"  {r.numero}. {r.libelle}")
+    else:
+        lignes.append("  (à compléter)")
+    lignes += [
+        "",
+        "Vous pouvez consulter les détails et répondre en ligne :",
+        copro.frontend_url or "https://copro.cloudfr.net",
+        "",
+        "Cordialement,",
+        syndic_nom or "Le syndic",
+        f"Syndic bénévole — {copro.nom}",
+    ]
+    return "\n".join(lignes)
+
+
+def _article(label: str) -> str:
+    return "l'" + label if label.startswith("A") else "la " + label

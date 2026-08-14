@@ -12,6 +12,8 @@ export default function Settings() {
   const [modal, setModal] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [smtpTest, setSmtpTest] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [smtpBusy, setSmtpBusy] = useState(false);
 
   useEffect(() => {
     api.get<Copro>("/copro").then(setCopro).catch(() => {});
@@ -36,6 +38,40 @@ export default function Settings() {
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
+  async function saveSmtp() {
+    if (!copro) return;
+    setSaved(false);
+    setError("");
+    try {
+      await api.put("/smtp/config", {
+        smtp_host: copro.smtp_host, smtp_port: copro.smtp_port,
+        smtp_user: copro.smtp_user, smtp_password: copro.smtp_password,
+        email_expediteur: copro.email_expediteur, frontend_url: copro.frontend_url,
+      });
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
+  async function testSmtp() {
+    if (!copro) return;
+    setSmtpBusy(true);
+    setSmtpTest(null);
+    try {
+      const res = await api.post<{ ok: boolean; detail: string }>("/smtp/test", {
+        smtp_host: copro.smtp_host, smtp_port: copro.smtp_port,
+        smtp_user: copro.smtp_user, smtp_password: copro.smtp_password,
+        email_expediteur: copro.email_expediteur, frontend_url: copro.frontend_url,
+      });
+      setSmtpTest(res);
+    } catch (e) {
+      setSmtpTest({ ok: false, detail: e instanceof Error ? e.message : "Erreur" });
+    } finally {
+      setSmtpBusy(false);
     }
   }
 
@@ -97,6 +133,41 @@ export default function Settings() {
             <Input label="Compte dédié" value={copro.fonds_travaux_compte} onChange={(e) => setCopro({ ...copro, fonds_travaux_compte: e.target.value })} placeholder="IBAN / référence" />
           </div>
           {isSyndic && <Button onClick={saveCopro}>Enregistrer</Button>}
+        </div>
+      </Card>
+
+      <Card title="Envoi des emails (convocations AG)">
+        <div className="space-y-3">
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+            Utilisé pour envoyer les convocations aux assemblées générales. Exemples : Gmail
+            (<code className="text-slate-700">smtp.gmail.com:587</code> + mot de passe d'application), votre hébergeur,
+            ou un serveur mailcow.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Serveur SMTP" value={copro.smtp_host} onChange={(e) => setCopro({ ...copro, smtp_host: e.target.value })} placeholder="smtp.example.fr" className="col-span-2" />
+            <Input label="Port" type="number" value={copro.smtp_port} onChange={(e) => setCopro({ ...copro, smtp_port: Number(e.target.value) })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Utilisateur" value={copro.smtp_user} onChange={(e) => setCopro({ ...copro, smtp_user: e.target.value })} placeholder="compte@example.fr" />
+            <Input label="Mot de passe" type="password" value={copro.smtp_password} onChange={(e) => setCopro({ ...copro, smtp_password: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Expéditeur" value={copro.email_expediteur} onChange={(e) => setCopro({ ...copro, email_expediteur: e.target.value })} placeholder="syndic@votre-domaine.fr" />
+            <Input label="Adresse publique de l'app" value={copro.frontend_url} onChange={(e) => setCopro({ ...copro, frontend_url: e.target.value })} placeholder="https://copro.cloudfr.net" />
+          </div>
+          {isSyndic && (
+            <div className="flex gap-2">
+              <Button onClick={saveSmtp}>Enregistrer la configuration</Button>
+              <Button variant="secondary" onClick={testSmtp} disabled={smtpBusy}>
+                {smtpBusy ? "Envoi…" : "Envoyer un email de test"}
+              </Button>
+            </div>
+          )}
+          {smtpTest && (
+            <p className={`rounded-lg px-3 py-2 text-sm ${smtpTest.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+              {smtpTest.ok ? "✓ " : "✗ "}{smtpTest.detail}
+            </p>
+          )}
         </div>
       </Card>
 

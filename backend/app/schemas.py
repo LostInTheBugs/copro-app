@@ -50,6 +50,12 @@ class CoproOut(BaseModel):
     fonds_travaux_taux_pct: float = 5.0
     fonds_travaux_compte: str = ""
     compte_bancaire_separe: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_expediteur: str = ""
+    frontend_url: str = ""
     notes: str = ""
 
 
@@ -63,6 +69,12 @@ class CoproUpdate(BaseModel):
     fonds_travaux_taux_pct: Optional[float] = None
     fonds_travaux_compte: Optional[str] = None
     compte_bancaire_separe: Optional[str] = None
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    email_expediteur: Optional[str] = None
+    frontend_url: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -206,6 +218,7 @@ class RecapOut(BaseModel):
 # ---------- AG / résolutions ----------
 class AGIn(BaseModel):
     date: date
+    heure: str = ""
     type_ag: str = "annuelle"
     statut: str = "projet"
     lieu: str = ""
@@ -259,11 +272,71 @@ class AGOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     date: date
+    heure: Optional[str] = ""
     type_ag: str = "annuelle"
     statut: str = "projet"
     lieu: str = ""
     notes: str = ""
     resolutions: List[ResolutionOut] = []
+
+
+# ---------- Sondage de dates (Doodle) ----------
+class CreneauIn(BaseModel):
+    debut: datetime
+    fin: Optional[datetime] = None
+
+
+class CreneauVoteIn(BaseModel):
+    lot_id: int
+    dispo: bool = True
+
+
+class CreneauVoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    lot_id: int
+    lot_numero: str = ""
+    dispo: bool = True
+
+
+class CreneauOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    debut: datetime
+    fin: Optional[datetime] = None
+    votes: List[CreneauVoteOut] = []
+
+
+# ---------- Invitations ----------
+class InvitationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    personne_nom: str = ""
+    personne_email: str = ""
+    date_envoi: datetime
+    statut: str = "envoye"
+    message: str = ""
+
+
+class InvitationsResult(BaseModel):
+    envoyes: int
+    sans_email: int
+    erreurs: List[str] = []
+
+
+# ---------- SMTP ----------
+class SmtpConfigIn(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    email_expediteur: Optional[str] = None
+    frontend_url: Optional[str] = None
+
+
+class SmtpTestResult(BaseModel):
+    ok: bool
+    detail: str = ""
 
 
 # ---------- Documents ----------

@@ -27,3 +27,29 @@ def get_db():
 def init_db():
     import app.models  # noqa: F401 — enregistre tous les modèles
     Base.metadata.create_all(bind=engine)
+    migrate()
+
+
+# Migrations légères sans alembic : ajoute les colonnes manquantes
+# (compatible SQLite et PostgreSQL).
+_MIGRATIONS = [
+    ("ags", "heure", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "smtp_host", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "smtp_port", "INTEGER DEFAULT 587"),
+    ("coproprietes", "smtp_user", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "smtp_password", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "email_expediteur", "VARCHAR DEFAULT ''"),
+    ("coproprietes", "frontend_url", "VARCHAR DEFAULT ''"),
+]
+
+
+def migrate():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    for table, column, coltype in _MIGRATIONS:
+        if table not in insp.get_table_names():
+            continue
+        cols = {c["name"] for c in insp.get_columns(table)}
+        if column not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {coltype}'))

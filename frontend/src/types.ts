@@ -20,6 +20,12 @@ export interface Copro {
   fonds_travaux_taux_pct: number;
   fonds_travaux_compte: string;
   compte_bancaire_separe: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_password: string;
+  email_expediteur: string;
+  frontend_url: string;
   notes: string;
 }
 
@@ -154,11 +160,41 @@ export interface Resolution {
 export interface AG {
   id: number;
   date: string;
+  heure: string;
   type_ag: string;
   statut: string;
   lieu: string;
   notes: string;
   resolutions: Resolution[];
+}
+
+export interface CreneauVote {
+  id: number;
+  lot_id: number;
+  lot_numero: string;
+  dispo: boolean;
+}
+
+export interface Creneau {
+  id: number;
+  debut: string;
+  fin: string | null;
+  votes: CreneauVote[];
+}
+
+export interface Invitation {
+  id: number;
+  personne_nom: string;
+  personne_email: string;
+  date_envoi: string;
+  statut: string;
+  message: string;
+}
+
+export interface InvitationsResult {
+  envoyes: number;
+  sans_email: number;
+  erreurs: string[];
 }
 
 export interface Document {
@@ -193,3 +229,18 @@ export const fmtDate = (d: string) =>
     month: "short",
     year: "numeric",
   });
+
+export const fmtDateTime = (d: string) =>
+  new Date(d).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+export const toLocalInput = (d: Date) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};

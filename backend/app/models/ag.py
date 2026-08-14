@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -8,6 +8,7 @@ class AG(Base):
     id = Column(Integer, primary_key=True)
     copropriete_id = Column(Integer, ForeignKey("coproprietes.id"), nullable=False)
     date = Column(Date, nullable=False)
+    heure = Column(String, default="")  # ex: "18:30"
     type_ag = Column(String, default="annuelle")  # annuelle | extraordinaire | consultation_ecrite
     statut = Column(String, default="projet")  # projet | convoquee | terminee
     lieu = Column(String, default="")
@@ -15,6 +16,31 @@ class AG(Base):
 
     copropriete = relationship("Copropriete", back_populates="ags")
     resolutions = relationship("Resolution", back_populates="ag", cascade="all, delete-orphan")
+    creneaux = relationship("AgCreneau", back_populates="ag", cascade="all, delete-orphan")
+    invitations = relationship("Invitation", back_populates="ag", cascade="all, delete-orphan")
+
+
+class AgCreneau(Base):
+    """Créneau de date/heure proposé pour une AG (sondage type Doodle)."""
+    __tablename__ = "ag_creneaux"
+    id = Column(Integer, primary_key=True)
+    ag_id = Column(Integer, ForeignKey("ags.id"), nullable=False)
+    debut = Column(DateTime, nullable=False)
+    fin = Column(DateTime, nullable=True)
+
+    ag = relationship("AG", back_populates="creneaux")
+    votes = relationship("AgCreneauVote", back_populates="creneau", cascade="all, delete-orphan")
+
+
+class AgCreneauVote(Base):
+    __tablename__ = "ag_creneau_votes"
+    id = Column(Integer, primary_key=True)
+    creneau_id = Column(Integer, ForeignKey("ag_creneaux.id"), nullable=False)
+    lot_id = Column(Integer, ForeignKey("lots.id"), nullable=False)
+    dispo = Column(Boolean, default=True)
+
+    creneau = relationship("AgCreneau", back_populates="votes")
+    lot = relationship("Lot")
 
 
 class Resolution(Base):

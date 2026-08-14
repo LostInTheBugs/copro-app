@@ -1,11 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.core.config import get_settings
 from app.core.database import init_db
-from app.routes import auth, copro, lots, comptes, ag, documents, carnet, export
+from app.routes import auth, copro, lots, comptes, ag, documents, carnet, export, email
 
 settings = get_settings()
 
@@ -27,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth, copro, lots, comptes, ag, documents, carnet, export):
+for r in (auth, copro, lots, comptes, ag, documents, carnet, export, email):
     app.include_router(r.router)
 
 
@@ -36,7 +36,20 @@ def health():
     return {"status": "ok", "app": settings.app_name}
 
 
-# Frontend statique (build Vite) servi par le backend en production
+# Frontend statique (build Vite) servi par le backend en production,
+# avec fallback SPA pour les routes profondes (refresh sur /ag, /comptes…)
 if settings.frontend_dist and os.path.isdir(settings.frontend_dist):
     dist = settings.frontend_dist
-    app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(404, "Not Found")
+        base = os.path.abspath(dist)
+        full = os.path.abspath(os.path.join(base, full_path))
+        if os.path.isfile(full) and full.startswith(base):
+            return FileResponse(full)
+        index = os.path.join(base, "index.html")
+        if os.path.isfile(index):
+            return FileResponse(index)
+        raise HTTPException(404, "Not Found")

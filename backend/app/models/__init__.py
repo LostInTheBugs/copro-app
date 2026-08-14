@@ -5,12 +5,13 @@ from app.models.lot import Lot
 from app.models.exercice import Exercice, BudgetLine
 from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
-from app.models.ag import AG, Resolution, Vote
+from app.models.ag import AG, Resolution, Vote, AgCreneau, AgCreneauVote
 from app.models.document import Document
 from app.models.carnet import Entretien
+from app.models.invitation import Invitation
 
 __all__ = [
     "User", "Copropriete", "Personne", "Lot", "Exercice", "BudgetLine",
     "AppelFonds", "AppelLot", "Mouvement", "AG", "Resolution", "Vote",
-    "Document", "Entretien",
+    "AgCreneau", "AgCreneauVote", "Document", "Entretien", "Invitation",
 ]

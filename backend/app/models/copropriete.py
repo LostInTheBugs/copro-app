@@ -19,6 +19,13 @@ class Copropriete(Base):
     fonds_travaux_taux_pct = Column(Float, default=5.0)
     fonds_travaux_compte = Column(String, default="")
     compte_bancaire_separe = Column(String, default="")
+    # Envoi des convocations par email
+    smtp_host = Column(String, default="")
+    smtp_port = Column(Integer, default=587)
+    smtp_user = Column(String, default="")
+    smtp_password = Column(String, default="")
+    email_expediteur = Column(String, default="")
+    frontend_url = Column(String, default="")
     notes = Column(String, default="")
 
     users = relationship("User", back_populates="copropriete")
