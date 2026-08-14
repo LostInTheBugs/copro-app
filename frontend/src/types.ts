@@ -130,6 +130,8 @@ export interface Recap {
   solde_caisse: number;
   fonds_travaux_encaisse: number;
   appels_en_cours: number;
+  nb_lots: number;
+  regime_petite_copro: boolean;
   lots: EtatDateLot[];
 }
 

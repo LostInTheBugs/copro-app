@@ -45,7 +45,9 @@ export default function Comptes() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Comptes</h1>
           <p className="text-sm text-slate-500">
-            Comptabilité simplifiée (régime petite copropriété, art. 41-8)
+            {recap?.regime_petite_copro
+              ? "Comptabilité simplifiée (régime petite copropriété, art. 41-8)"
+              : "Comptabilité (régime général de la loi du 10 juillet 1965)"}
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -216,11 +216,22 @@ def delete_mouvement(mouvement_id: int, db: Session = Depends(get_db), user: Use
 @router.get("/recap", response_model=RecapOut)
 def recap(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     copro = get_or_create_copro(db, user)
+
+    # Régime « petite copropriété » (art. 41-8) : ≤ 5 lots ou budget prévisionnel
+    # moyen < 15 000 €/an sur les 3 derniers exercices — calculé avant le garde
+    # ci-dessous pour rester renseigné même sans exercice
+    lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
+    exercices = (db.query(Exercice).filter(Exercice.copropriete_id == copro.id)
+                 .order_by(Exercice.annee.desc()).limit(3).all())
+    budgets = [sum(b.montant for b in e.budget_lines) for e in exercices]
+    budget_moyen = (sum(budgets) / len(budgets)) if budgets else 0.0
+    regime_petite = len(lots) <= 5 or budget_moyen < 15000
+
     ex = db.query(Exercice).filter(Exercice.copropriete_id == copro.id, Exercice.cloture == False).order_by(Exercice.annee.desc()).first()  # noqa: E712
     if not ex:
         ex = db.query(Exercice).filter(Exercice.copropriete_id == copro.id).order_by(Exercice.annee.desc()).first()
     if not ex:
-        return RecapOut(exercice_id=0, annee=0)
+        return RecapOut(exercice_id=0, annee=0, nb_lots=len(lots), regime_petite_copro=regime_petite)
 
     budget = sum(b.montant for b in ex.budget_lines)
     mouvements = db.query(Mouvement).filter(Mouvement.exercice_id == ex.id).all()
@@ -232,7 +243,6 @@ def recap(db: Session = Depends(get_db), user: User = Depends(get_current_user))
         AppelFonds.date_echeance.isnot(None),
     ).count()
 
-    lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
     lots_out = []
     for lot in lots:
         appels_c = sum(a.montant_charges for a in db.query(AppelLot).filter(AppelLot.lot_id == lot.id).all())
@@ -252,4 +262,6 @@ def recap(db: Session = Depends(get_db), user: User = Depends(get_current_user))
         fonds_travaux_encaisse=round(ft_encaisse, 2),
         appels_en_cours=appels_en_cours,
         lots=lots_out,
+        nb_lots=len(lots),
+        regime_petite_copro=regime_petite,
     )

@@ -232,6 +232,8 @@ class RecapOut(BaseModel):
     fonds_travaux_encaisse: float = 0.0
     appels_en_cours: int = 0
     lots: List[EtatDateLot] = []
+    nb_lots: int = 0
+    regime_petite_copro: bool = True  # art. 41-8 : ≤ 5 lots ou budget moyen < 15 000 €/an
 
 
 # ---------- AG / résolutions ----------
