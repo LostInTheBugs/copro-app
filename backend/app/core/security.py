@@ -15,11 +15,13 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, copro_id: int | None = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
     payload = {"sub": str(user_id), "exp": expire}
+    if copro_id:
+        payload["copro_id"] = copro_id
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 

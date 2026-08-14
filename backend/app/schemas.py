@@ -64,6 +64,15 @@ class CoproOut(BaseModel):
     notes: str = ""
 
 
+class CoproCreate(BaseModel):
+    """Création d'une nouvelle copropriété (multi-copro)."""
+    nom: str
+    adresse: str = ""
+    ville: str = ""
+    code_postal: str = ""
+    annee_construction: Optional[int] = None
+
+
 class CoproUpdate(BaseModel):
     nom: Optional[str] = None
     adresse: Optional[str] = None

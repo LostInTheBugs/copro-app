@@ -60,3 +60,15 @@ def migrate():
         if column not in cols:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {coltype}'))
+    # Multi-copro : crée la liaison user→copro pour les comptes existants
+    tables = set(insp.get_table_names())
+    if "user_coproprietes" in tables:
+        with engine.begin() as conn:
+            n = conn.execute(text(
+                "SELECT COUNT(*) FROM user_coproprietes"
+            )).scalar()
+            if n == 0:
+                conn.execute(text(
+                    "INSERT INTO user_coproprietes (user_id, copropriete_id, principale) "
+                    "SELECT id, copropriete_id, TRUE FROM users WHERE copropriete_id IS NOT NULL"
+                ))

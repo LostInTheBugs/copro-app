@@ -23,6 +23,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
     if not user:
         raise HTTPException(401, detail="Utilisateur introuvable")
+    user._token_data = payload
     return user
 
 

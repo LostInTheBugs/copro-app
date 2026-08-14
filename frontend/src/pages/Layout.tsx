@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { api, clearToken } from "../api";
+import { api, clearToken, setToken } from "../api";
 import { useUser } from "../auth";
 import type { Copro } from "../types";
 
@@ -16,14 +16,56 @@ const NAV = [
   { to: "/settings", label: "Réglages", icon: "⚙" },
 ];
 
+interface CoproLien {
+  id: number;
+  nom: string;
+  ville: string;
+  principale: boolean;
+  active: boolean;
+}
+
 export default function Layout() {
   const { user } = useUser();
-  const [copro, setCopro] = useState<Copro | null>(null);
+  const [copros, setCopros] = useState<CoproLien[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [creation, setCreation] = useState(false);
+  const [nvNom, setNvNom] = useState("");
+  const [nvVille, setNvVille] = useState("");
+  const [busy, setBusy] = useState(false);
   const nav = useNavigate();
 
   useEffect(() => {
-    api.get<Copro>("/copro").then(setCopro).catch(() => {});
+    api.get<CoproLien[]>("/auth/coproprietes").then(setCopros).catch(() => {});
   }, []);
+
+  const active = copros.find((c) => c.active);
+
+  async function switcher(id: number) {
+    setBusy(true);
+    try {
+      const r = await api.post<{ access_token: string }>(`/auth/switch-copro/${id}`);
+      setToken(r.access_token);
+      window.location.reload();
+    } catch {
+      setBusy(false);
+    }
+  }
+
+  async function creer() {
+    if (!nvNom.trim() || busy) return;
+    setBusy(true);
+    try {
+      const r = await api.post<{ access_token: string }>("/auth/coproprietes", {
+        nom: nvNom.trim(),
+        ville: nvVille.trim(),
+      });
+      setToken(r.access_token);
+      window.location.reload();
+    } catch (e) {
+      setBusy(false);
+      alert(e instanceof Error ? e.message : "Erreur");
+    }
+  }
 
   function logout() {
     clearToken();
@@ -33,14 +75,81 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="flex items-center gap-2.5 px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
-            C
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-800">CoproApp</p>
-            <p className="truncate text-xs text-slate-500">{copro?.nom ?? "…"}</p>
-          </div>
+        <div className="relative px-5 py-4">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex w-full items-center gap-2.5 text-left"
+            title="Changer de copropriété"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
+              C
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-800">CoproApp</p>
+              <p className="truncate text-xs text-slate-500">{active?.nom ?? "…"}</p>
+            </div>
+            <span className="text-xs text-slate-400">▾</span>
+          </button>
+          {menuOpen && (
+            <div className="absolute left-3 right-3 top-[4.2rem] z-20 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              {copros.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => switcher(c.id)}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm ${
+                    c.active ? "bg-indigo-50 font-medium text-indigo-700" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="w-4 text-center">🏢</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{c.nom}</span>
+                    {c.ville && <span className="block truncate text-xs text-slate-400">{c.ville}</span>}
+                  </span>
+                  {c.active && <span className="text-xs text-indigo-500">✓</span>}
+                </button>
+              ))}
+              {user?.role === "syndic" && !creation && (
+                <button
+                  onClick={() => setCreation(true)}
+                  className="mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-500 hover:bg-slate-50"
+                >
+                  <span className="w-4 text-center">＋</span> Nouvelle copropriété
+                </button>
+              )}
+              {creation && (
+                <div className="mt-1 space-y-1.5 rounded-lg border border-dashed border-slate-300 p-2">
+                  <input
+                    autoFocus
+                    value={nvNom}
+                    onChange={(e) => setNvNom(e.target.value)}
+                    placeholder="Nom (ex. Résidence Les Tilleuls)"
+                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
+                  />
+                  <input
+                    value={nvVille}
+                    onChange={(e) => setNvVille(e.target.value)}
+                    placeholder="Ville (optionnel)"
+                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
+                  />
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={creer}
+                      disabled={busy || !nvNom.trim()}
+                      className="flex-1 rounded-lg bg-indigo-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {busy ? "…" : "Créer"}
+                    </button>
+                    <button
+                      onClick={() => setCreation(false)}
+                      className="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <nav className="flex-1 space-y-0.5 px-3 py-2">
           {NAV.map((item) => (

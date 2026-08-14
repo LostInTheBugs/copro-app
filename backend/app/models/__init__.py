@@ -1,4 +1,4 @@
-from app.models.user import User
+from app.models.user import User, UserCopro
 from app.models.copropriete import Copropriete
 from app.models.personne import Personne
 from app.models.lot import Lot
