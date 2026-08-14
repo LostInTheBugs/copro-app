@@ -212,6 +212,7 @@ def main():
         for lot in (lot_objs[0], lot_objs[1], lot_objs[3]):  # lots 1, 2, 4 à jour
             payer(appel, lot, appel.date_echeance)
     payer(c1, lot_objs[4], c1.date_echeance)  # SCI a payé T1
+    payer(c1, lot_objs[2], c1.date_echeance)  # Bernard a payé T1
     # lots 3 (Bernard) et 5 (SCI) : T2 non payé → relances
     depense(exercices[2026], date(2026, 1, 15), "Prime d'assurance immeuble 2026", 1160.0)
     depense(exercices[2026], date(2026, 2, 10), "Remplacement interphone (fonds travaux)", 620.0, "fonds_travaux")
