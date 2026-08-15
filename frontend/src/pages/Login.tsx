@@ -20,7 +20,9 @@ export default function Login() {
         ? await api.post<{ access_token: string }>("/auth/login", { email, password })
         : await api.post<{ access_token: string }>("/auth/register", { email, password, nom });
       setToken(res.access_token);
-      nav("/");
+      // Rechargement complet : UserProvider (déjà monté) re-lit /auth/me avec le
+      // nouveau token → le profil syndic/copropriétaire est chargé.
+      window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {

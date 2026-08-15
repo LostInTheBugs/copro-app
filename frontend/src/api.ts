@@ -24,7 +24,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const res = await fetch("/api" + path, { method, headers, body: payload });
   if (res.status === 401) {
     clearToken();
-    window.location.href = "/login";
+    // Ne pas recharger si on est déjà sur la page de login (évite la boucle
+    // de rechargement quand /auth/me répond 401 sans token).
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
     throw new Error("Non authentifié");
   }
   if (!res.ok) {
