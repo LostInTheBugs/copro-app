@@ -51,8 +51,12 @@ if settings.frontend_dist and os.path.isdir(settings.frontend_dist):
         base = os.path.abspath(dist)
         full = os.path.abspath(os.path.join(base, full_path))
         if os.path.isfile(full) and full.startswith(base):
-            return FileResponse(full)
+            # Les fichiers Vite ont un hash de contenu dans leur nom → cache long.
+            cache = "public, max-age=31536000, immutable" if full_path.startswith("assets/") else "no-cache"
+            return FileResponse(full, headers={"Cache-Control": cache})
         index = os.path.join(base, "index.html")
         if os.path.isfile(index):
-            return FileResponse(index)
+            # index.html jamais mis en cache : le navigateur récupère toujours le
+            # dernier bundle (évite les boucles/bugs liés à un ancien JS).
+            return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
         raise HTTPException(404, "Not Found")
