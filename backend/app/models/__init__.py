@@ -11,9 +11,12 @@ from app.models.carnet import Entretien
 from app.models.invitation import Invitation
 from app.models.relance import Relance
 from app.models.travaux import Travaux
+from app.models.contact import Contact
+from app.models.contrat import Contrat
 
 __all__ = [
-    "User", "Copropriete", "Personne", "Lot", "Exercice", "BudgetLine",
+    "User", "UserCopro", "Copropriete", "Personne", "Lot", "Exercice", "BudgetLine",
     "AppelFonds", "AppelLot", "Mouvement", "AG", "Resolution", "Vote",
-    "AgCreneau", "AgCreneauVote", "Document", "Entretien", "Invitation",
+    "AgCreneau", "AgCreneauVote", "Document", "Entretien", "Invitation", "Relance",
+    "Travaux", "Contact", "Contrat",
 ]

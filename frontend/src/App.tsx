@@ -9,6 +9,8 @@ import Lots from "./pages/Lots";
 import Comptes from "./pages/Comptes";
 import Ag from "./pages/Ag";
 import Documents from "./pages/Documents";
+import Contacts from "./pages/Contacts";
+import Contrats from "./pages/Contrats";
 import Carnet from "./pages/Carnet";
 import Settings from "./pages/Settings";
 import Relances from "./pages/Relances";
@@ -41,6 +43,8 @@ export default function App() {
           <Route path="comptes" element={<Comptes />} />
           <Route path="ag" element={<Ag />} />
           <Route path="documents" element={<Documents />} />
+          <Route path="contacts" element={<Contacts />} />
+          <Route path="contrats" element={<Contrats />} />
           <Route path="carnet" element={<Carnet />} />
           <Route path="relances" element={<Relances />} />
           <Route path="travaux" element={<TravauxPage />} />

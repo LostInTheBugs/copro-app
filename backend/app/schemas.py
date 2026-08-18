@@ -377,6 +377,63 @@ class RelanceOut(BaseModel):
     message: str = ""
 
 
+# ---------- Contacts ----------
+class ContactIn(BaseModel):
+    nom: str
+    type: str = "entreprise"
+    categorie: str = "autres"
+    telephone: str = ""
+    email: str = ""
+    adresse: str = ""
+    site_web: str = ""
+    notes: str = ""
+
+
+class ContactOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nom: str
+    type: str = "entreprise"
+    categorie: str = "autres"
+    telephone: str = ""
+    email: str = ""
+    adresse: str = ""
+    site_web: str = ""
+    notes: str = ""
+
+
+# ---------- Contrats ----------
+class ContratIn(BaseModel):
+    libelle: str
+    type: str = "autres"
+    reference: str = ""
+    contact_id: Optional[int] = None
+    date_debut: str = ""
+    date_fin: str = ""
+    montant: float = 0.0
+    periode: str = "annuel"
+    renouvellement_auto: bool = False
+    notes: str = ""
+
+
+class ContratOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    libelle: str
+    type: str = "autres"
+    reference: str = ""
+    contact_id: Optional[int] = None
+    contact_nom: str = ""
+    date_debut: str = ""
+    date_fin: str = ""
+    montant: float = 0.0
+    periode: str = "annuel"
+    renouvellement_auto: bool = False
+    notes: str = ""
+    statut: str = "actif"  # actif, expire_bientot, expire
+    jours_restants: Optional[int] = None
+
+
 # ---------- Plan pluriannuel de travaux ----------
 class TravauxIn(BaseModel):
     libelle: str

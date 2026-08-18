@@ -240,6 +240,35 @@ export interface Travaux {
   notes: string;
 }
 
+export interface Contact {
+  id: number;
+  nom: string;
+  type: string;
+  categorie: string;
+  telephone: string;
+  email: string;
+  adresse: string;
+  site_web: string;
+  notes: string;
+}
+
+export interface Contrat {
+  id: number;
+  libelle: string;
+  type: string;
+  reference: string;
+  contact_id: number | null;
+  contact_nom: string;
+  date_debut: string;
+  date_fin: string;
+  montant: number;
+  periode: string;
+  renouvellement_auto: boolean;
+  notes: string;
+  statut: string; // actif, expire_bientot, expire
+  jours_restants: number | null;
+}
+
 export interface Document {
   id: number;
   categorie: string;

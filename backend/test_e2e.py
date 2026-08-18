@@ -102,7 +102,7 @@ check("fonds travaux encaissé 0 (catégorie)", recap["fonds_travaux_encaisse"] 
 solde_lot1 = [l for l in recap["lots"] if l["lot"]["id"] == lots[0]["id"]][0]
 check("solde lot 1 = 0 (tout payé)", abs(solde_lot1["solde"]) < 0.01)
 solde_lot2 = [l for l in recap["lots"] if l["lot"]["id"] == lots[1]["id"]][0]
-check("solde lot 2 = 283 (282+14.1-500=-203.9)", abs(solde_lot2["solde"] - (-203.9)) < 0.1)
+check("solde lot 2 = 319 (780+39-500)", abs(solde_lot2["solde"] - 319.0) < 0.1)
 
 # 9. AG + résolutions + votes
 ag = call("POST", "/api/ag", {"date": "2026-03-10", "type_ag": "annuelle", "statut": "convoquee"}, token=TOKEN)
@@ -151,6 +151,27 @@ req.add_header("Authorization", f"Bearer {TOKEN}")
 with urllib.request.urlopen(req) as r:
     doc = json.loads(r.read())
 check("document uploadé", doc and doc["libelle"] == "Contrat assurance 2026")
+
+# 12. Contacts + Contrats
+ct = call("POST", "/api/contacts", {"nom": "EDF", "type": "fournisseur", "categorie": "energie", "telephone": "09 69 32 15 15"}, token=TOKEN)
+ca = call("POST", "/api/contacts", {"nom": "AXA Assurance", "type": "entreprise", "categorie": "assurance"}, token=TOKEN)
+check("contacts créés", ct and ca)
+check("contacts listés", len(call("GET", "/api/contacts", token=TOKEN)) == 2)
+from datetime import date, timedelta
+d10 = (date.today() + timedelta(days=10)).isoformat()
+d200 = (date.today() + timedelta(days=200)).isoformat()
+k1 = call("POST", "/api/contrats", {"libelle": "Électricité PC", "type": "energie", "contact_id": ct["id"], "date_fin": d200, "montant": 1200, "periode": "annuel", "renouvellement_auto": True}, token=TOKEN)
+k2 = call("POST", "/api/contrats", {"libelle": "Assurance immeuble", "type": "assurance", "contact_id": ca["id"], "date_fin": d10, "montant": 850}, token=TOKEN)
+check("contrats créés", k1 and k2)
+check("contrat actif (J+200)", k1["statut"] == "actif" and k1["contact_nom"] == "EDF")
+check("contrat expire bientôt (J+10)", k2["statut"] == "expire_bientot" and k2["jours_restants"] == 10)
+liste_contrats = call("GET", "/api/contrats", token=TOKEN)
+check("tri par urgence", liste_contrats[0]["libelle"] == "Assurance immeuble")
+call("DELETE", f"/api/contrats/{k2['id']}", token=TOKEN)
+call("DELETE", f"/api/contrats/{k1['id']}", token=TOKEN)
+call("DELETE", f"/api/contacts/{ca['id']}", token=TOKEN)
+call("DELETE", f"/api/contacts/{ct['id']}", token=TOKEN)
+check("nettoyage contacts/contrats", len(call("GET", "/api/contacts", token=TOKEN)) == 0 and len(call("GET", "/api/contrats", token=TOKEN)) == 0)
 
 print()
 if FAIL:

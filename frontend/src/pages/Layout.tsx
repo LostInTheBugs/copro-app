@@ -10,6 +10,8 @@ const NAV = [
   { to: "/comptes", label: "Comptes", icon: "€" },
   { to: "/ag", label: "Assemblées", icon: "🗳" },
   { to: "/documents", label: "Documents", icon: "▤" },
+  { to: "/contacts", label: "Contacts", icon: "👥" },
+  { to: "/contrats", label: "Contrats", icon: "📄" },
   { to: "/carnet", label: "Carnet d'entretien", icon: "🔧" },
   { to: "/relances", label: "Relances", icon: "📧" },
   { to: "/travaux", label: "Travaux", icon: "🔨" },

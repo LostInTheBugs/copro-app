@@ -30,8 +30,14 @@ se créer normalement depuis la page de connexion.
   (art. 24 / 25 / 26, unanimité, régime 2 copropriétaires), procès-verbaux
 - **Consultation écrite** (régime petite copropriété, unanimité)
 - **Documents** : contrats, devis, factures, diagnostics (stockage local)
+- **Contacts** : annuaire des entreprises, fournisseurs et artisans (téléphone, email,
+  adresse, site web), recherche, catégories
+- **Contrats** : énergie (EDF…), assurance copro, entretien — montant, période,
+  renouvellement automatique, fournisseur lié, **échéances suivies automatiquement**
+  (alertes J-60, badges Expiré / Expire bientôt, tri par urgence)
 - **Carnet d'entretien** : interventions, prestataires, coûts
 - **Exports** : registre des copropriétés, compte de gestion annuel
+- **Multi-copropriétés** : un compte, plusieurs immeubles isolés, vue consolidée
 - **Multi-pays** : module de règles par pays (France en V1, extensible)
 
 ## Stack
