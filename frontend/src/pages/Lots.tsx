@@ -20,6 +20,7 @@ export default function Lots() {
   useEffect(() => { load(); }, []);
 
   const totalTantiemes = lots.reduce((s, l) => s + l.tantiemes, 0);
+  const ecart = Math.abs(totalTantiemes - 1000);
   const prop = (id: number | null) => personnes.find((p) => p.id === id);
 
   return (
@@ -28,9 +29,17 @@ export default function Lots() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Lots & occupants</h1>
           <p className="text-sm text-slate-500">
-            {lots.length} lot(s) — {totalTantiemes} / 1000 millièmes
-            {totalTantiemes !== 1000 && (
-              <span className="ml-2 font-medium text-amber-600">(attention : le total doit faire 1000)</span>
+            {lots.length} lot(s) — {totalTantiemes} millièmes au total
+            {totalTantiemes !== 1000 && ecart <= 100 && (
+              <span className="ml-2 font-medium text-amber-600">
+                (base de répartition : {totalTantiemes}‰ — les appels de fonds et les votes
+                utilisent ce total réel, pas besoin d'ajuster à 1000)
+              </span>
+            )}
+            {totalTantiemes !== 1000 && ecart > 100 && (
+              <span className="ml-2 font-medium text-red-600">
+                (⚠ total très éloigné de 1000 — vérifie la saisie des millièmes)
+              </span>
             )}
           </p>
         </div>
@@ -117,6 +126,7 @@ export default function Lots() {
         <LotModal
           item={modal.item as Lot | undefined}
           personnes={personnes}
+          autresTotal={totalTantiemes - (modal.item ? (modal.item as Lot).tantiemes : 0)}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load(); }}
           onError={setError}
@@ -135,8 +145,8 @@ export default function Lots() {
   );
 }
 
-function LotModal({ item, personnes, onClose, onSaved, onError }: {
-  item?: Lot; personnes: Personne[]; onClose: () => void; onSaved: () => void; onError: (e: string) => void;
+function LotModal({ item, personnes, autresTotal, onClose, onSaved, onError }: {
+  item?: Lot; personnes: Personne[]; autresTotal: number; onClose: () => void; onSaved: () => void; onError: (e: string) => void;
 }) {
   const [f, setF] = useState({
     numero: item?.numero ?? "",
@@ -147,6 +157,7 @@ function LotModal({ item, personnes, onClose, onSaved, onError }: {
     occupant_id: item?.occupant_id ?? "",
   });
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
+  const totalProjete = autresTotal + Number(f.tantiemes || 0);
 
   async function save() {
     try {
@@ -179,6 +190,15 @@ function LotModal({ item, personnes, onClose, onSaved, onError }: {
             className="col-span-2"
           />
         </div>
+        <p className="text-xs text-slate-500">
+          Total des millièmes après enregistrement :{" "}
+          <b className="tabular-nums">{totalProjete}</b>
+          {totalProjete !== 1000 && (
+            <span className="ml-1 text-amber-600">
+              (les répartitions utiliseront ce total comme base — pas besoin qu'il fasse 1000)
+            </span>
+          )}
+        </p>
         <Input label="Désignation" value={f.designation} onChange={(e) => set("designation", e.target.value)} placeholder="Appartement T3" />
         <Select label="Type" value={f.type} onChange={(e) => set("type", e.target.value)}>
           <option value="appartement">Appartement</option>
