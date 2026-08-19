@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="CoproApp", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="CoproApp", version="2026.08.100", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
