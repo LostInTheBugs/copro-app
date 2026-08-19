@@ -45,7 +45,7 @@ se créer normalement depuis la page de connexion.
 - Backend : FastAPI + SQLAlchemy + JWT (Python 3.11)
 - Frontend : React + TypeScript + Vite + Tailwind
 - Base de données : PostgreSQL (prod) / SQLite (dev)
-- Déploiement : Docker Compose + Caddy (TLS auto) — hébergé sur serveur
+- Déploiement : Docker Compose + Caddy (TLS auto) — hébergé sur un serveur dédié, derrière Cloudflare
 
 ## Développement local
 
@@ -64,12 +64,12 @@ npm run dev
 
 Premier lancement : créer le compte syndic via `POST /api/auth/register` (ouvert tant qu'aucun utilisateur n'existe).
 
-## Déploiement (serveur)
+## Déploiement
 
-Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur [IP], Caddy TLS Let's Encrypt).
+Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
 
 ```bash
-# Sur serveur (utilisateur admin, sudo NOPASSWD pour docker)
+# Sur le serveur de production (utilisateur avec droits docker)
 cd /opt/copro-app
 git pull                                  # mise à jour du code
 # Builder le frontend sur la machine de dev puis :
@@ -78,6 +78,6 @@ sudo docker compose up -d --build          # rebuild backend si nécessaire
 ```
 
 - `.env` (racine) : `POSTGRES_PASSWORD` + `COPRO_SECRET_KEY` (jamais commités)
-- Attention : pas de `docker` sans sudo pour admin → toujours `sudo docker compose …`
+- Attention : pas de `docker` sans sudo pour l'utilisateur du serveur → toujours `sudo docker compose …`
 - Caddy redémarre automatiquement en cas d'échec de certificat (retry 60 s)
 - Mise à jour du dist frontend : copier dans `frontend_dist/` (monté en lecture seule dans le conteneur)
