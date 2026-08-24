@@ -137,14 +137,14 @@ lance uvicorn (idempotent ; un seul conteneur backend dans le compose actuel).
 ```bash
 # Sur le serveur de production (utilisateur avec droits docker)
 cd /opt/copro-app
-git pull                                  # mise à jour du code
-# (jusqu'à la PR docker multi-stage) : builder le frontend sur la machine de dev puis
-# tar czf - -C frontend dist | ssh serveur "cd /opt/copro-app && mkdir -p frontend_dist && \
-#   tar xzf - -C frontend_dist && mv -f frontend_dist/dist/* frontend_dist/ 2>/dev/null; rmdir frontend_dist/dist 2>/dev/null"
-sudo docker compose up -d --build         # rebuild backend si nécessaire
+git pull
+sudo docker compose up -d --build
 ```
+
+Le build multi-stage (Dockerfile racine `backend/Dockerfile`) compile le frontend (Node 20)
+et construit le backend (Python 3.11) : plus aucune manipulation manuelle du bundle —
+le conteneur sert le `dist/` produit au build. Le frontend est inclus dans l'image.
 
 - `.env` (racine) : `POSTGRES_PASSWORD` + `COPRO_SECRET_KEY` (jamais commités)
 - Attention : pas de `docker` sans sudo pour l'utilisateur du serveur → toujours `sudo docker compose …`
 - Caddy redémarre automatiquement en cas d'échec de certificat (retry 60 s)
-- Mise à jour du dist frontend : copier dans `frontend_dist/` (monté en lecture seule dans le conteneur)

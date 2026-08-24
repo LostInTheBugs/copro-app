@@ -1,18 +1,33 @@
+# ===== Stage 1 : build du frontend (Node 20) =====
+FROM node:20-alpine AS frontend-build
+WORKDIR /src/frontend
+
+# package.json + lock d'abord : le cache npm est réutilisé tant que les deps
+# ne changent pas.
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build   # inclut tsc -b (typecheck)
+
+# ===== Stage 2 : backend Python 3.11 =====
 FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
-COPY alembic.ini .
-COPY alembic ./alembic
+COPY backend/app ./app
+COPY backend/alembic.ini .
+COPY backend/alembic ./alembic
 
-RUN mkdir -p /app/uploads /app/frontend_dist
+# Bundle frontend produit par le stage 1 — stratégie de cache conservée :
+# app/main.py sert les assets hashés en `immutable` et index.html en `no-store`.
+COPY --from=frontend-build /src/frontend/dist ./frontend_dist
+
+RUN mkdir -p /app/uploads
 
 EXPOSE 8000
-# Migration explicite au démarrage du conteneur, avant le serveur :
-# `alembic upgrade head` est idempotent, une seule instance backend tourne
-# (compose actuel) — voir README, section Déploiement.
+# Migration explicite au démarrage (Alembic, idempotent) puis serveur.
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
