@@ -20,3 +20,6 @@ uploads/
 
 # TS build cache
 *.tsbuildinfo
+
+# Prompts de travail (audit/tâches) — jamais publiés
+claude/

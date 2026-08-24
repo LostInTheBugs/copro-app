@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""Test E2E du backend CoproApp (dev lab)."""
+"""Smoke test E2E manuel contre une instance RÉELLE (dev lab ou production).
+
+Le parcours fonctionnel équivalent tourne en CI dans `backend/tests/`
+(pytest, SQLite en mémoire) — voir `test_flux_complet.py`. Ce script garde son
+utilité pour vérifier un déploiement réel de bout en bout (uvicorn, base de
+données réelle, config SMTP…) :
+
+    # instance de dev locale (après seed_demo.py) :
+    uvicorn app.main:app --port 8000 &
+    python scripts/smoke_e2e.py
+
+Exige un compte `syndic@test.fr` / `test1234` (créé par seed_demo.py).
+"""
 import json
 import urllib.request
 

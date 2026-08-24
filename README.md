@@ -64,6 +64,26 @@ npm run dev
 
 Premier lancement : créer le compte syndic via `POST /api/auth/register` (ouvert tant qu'aucun utilisateur n'existe).
 
+## Tests
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest -q            # 44 tests, ~70 % de couverture (pytest --cov)
+```
+
+La suite (pytest + TestClient, SQLite en mémoire) couvre : isolation multi-copro,
+majorités légales (art. 24/25/26, unanimité, régime 2 copropriétaires, passerelle
+25-1), tantièmes et appels de fonds (total ≠ 1000, arrondis au centime), soldes
+par lot, authentification (register fermé, login, switch-copro, expiration),
+fonds de travaux 5 %, génération PDF (non vide + régression du compte de gestion)
+et un flux complet de bout en bout. CI : `.github/workflows/ci.yml` (push + PR).
+
+L'ancien `test_e2e.py` (script urllib contre une instance réelle) vit désormais
+dans `backend/scripts/smoke_e2e.py` : conservé comme smoke test manuel d'un
+déploiement réel, le parcours équivalent tournant en CI dans `test_flux_complet.py`.
+
 ## Déploiement
 
 Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
