@@ -6,6 +6,7 @@ from app.core.deps import get_current_user, require_syndic
 from app.models.user import User
 from app.models.contrat import Contrat
 from app.models.contact import Contact
+from app.core.scoping import get_owned
 from app.routes.copro import get_or_create_copro
 from app.schemas import ContratIn, ContratOut
 
@@ -80,9 +81,8 @@ def creer(data: ContratIn, db: Session = Depends(get_db), user: User = Depends(r
 
 @router.put("/{contrat_id}", response_model=ContratOut)
 def modifier(contrat_id: int, data: ContratIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    c = db.query(Contrat).filter(Contrat.id == contrat_id).first()
-    if not c:
-        raise HTTPException(404, "Contrat introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned(db, Contrat, contrat_id, copro, label="Contrat")
     for k, v in data.model_dump().items():
         setattr(c, k, v)
     db.commit()
@@ -92,9 +92,8 @@ def modifier(contrat_id: int, data: ContratIn, db: Session = Depends(get_db), us
 
 @router.delete("/{contrat_id}")
 def supprimer(contrat_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    c = db.query(Contrat).filter(Contrat.id == contrat_id).first()
-    if not c:
-        raise HTTPException(404, "Contrat introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned(db, Contrat, contrat_id, copro, label="Contrat")
     db.delete(c)
     db.commit()
     return {"ok": True}

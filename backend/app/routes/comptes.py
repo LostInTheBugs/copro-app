@@ -7,7 +7,7 @@ from app.models.lot import Lot
 from app.models.exercice import Exercice, BudgetLine
 from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
-from app.models.copropriete import Copropriete
+from app.core.scoping import get_owned, get_owned_via
 from app.routes.copro import get_or_create_copro
 from app.services.country_rules import repartir_par_tantiemes
 from app.schemas import (
@@ -18,11 +18,8 @@ from app.schemas import (
 router = APIRouter(prefix="/api", tags=["comptes"])
 
 
-def get_exercice(db: Session, exercice_id: int) -> Exercice:
-    ex = db.query(Exercice).filter(Exercice.id == exercice_id).first()
-    if not ex:
-        raise HTTPException(404, "Exercice introuvable")
-    return ex
+def get_exercice(db: Session, exercice_id: int, copro) -> Exercice:
+    return get_owned(db, Exercice, exercice_id, copro, label="Exercice")
 
 
 # ---------- Exercices ----------
@@ -51,7 +48,8 @@ def create_exercice(data: ExerciceIn, db: Session = Depends(get_db), user: User 
 
 @router.put("/exercices/{exercice_id}", response_model=ExerciceOut)
 def update_exercice(exercice_id: int, data: ExerciceIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     ex.annee = data.annee
     ex.cloture = data.cloture
     db.commit()
@@ -62,7 +60,8 @@ def update_exercice(exercice_id: int, data: ExerciceIn, db: Session = Depends(ge
 
 @router.delete("/exercices/{exercice_id}")
 def delete_exercice(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     db.delete(ex)
     db.commit()
     return {"ok": True}
@@ -71,13 +70,15 @@ def delete_exercice(exercice_id: int, db: Session = Depends(get_db), user: User 
 # ---------- Budget ----------
 @router.get("/exercices/{exercice_id}/budget", response_model=list[BudgetLineOut])
 def get_budget(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     return ex.budget_lines
 
 
 @router.post("/exercices/{exercice_id}/budget", response_model=BudgetLineOut)
 def add_budget_line(exercice_id: int, data: BudgetLineIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     line = BudgetLine(exercice_id=ex.id, **data.model_dump())
     db.add(line)
     db.commit()
@@ -87,9 +88,8 @@ def add_budget_line(exercice_id: int, data: BudgetLineIn, db: Session = Depends(
 
 @router.delete("/budget/{line_id}")
 def delete_budget_line(line_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    line = db.query(BudgetLine).filter(BudgetLine.id == line_id).first()
-    if not line:
-        raise HTTPException(404, "Ligne introuvable")
+    copro = get_or_create_copro(db, user)
+    line = get_owned_via(db, BudgetLine, Exercice, line_id, copro, "exercice_id", label="Ligne")
     db.delete(line)
     db.commit()
     return {"ok": True}
@@ -98,7 +98,8 @@ def delete_budget_line(line_id: int, db: Session = Depends(get_db), user: User =
 # ---------- Appels de fonds ----------
 @router.get("/exercices/{exercice_id}/appels", response_model=list[AppelOut])
 def list_appels(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     appels = db.query(AppelFonds).filter(AppelFonds.exercice_id == ex.id).order_by(AppelFonds.date_emission).all()
     out = []
     for a in appels:
@@ -122,8 +123,8 @@ def list_appels(exercice_id: int, db: Session = Depends(get_db), user: User = De
 
 @router.post("/exercices/{exercice_id}/appels", response_model=AppelOut)
 def create_appel(exercice_id: int, data: AppelIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ex = get_exercice(db, exercice_id)
-    copro = db.query(Copropriete).filter(Copropriete.id == ex.copropriete_id).first()
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     lots = db.query(Lot).filter(Lot.copropriete_id == ex.copropriete_id).all()
     if not lots:
         raise HTTPException(400, "Créez d'abord des lots avec des tantièmes")
@@ -147,10 +148,10 @@ def create_appel(exercice_id: int, data: AppelIn, db: Session = Depends(get_db),
             appel_id=appel.id,
             lot_id=p["lot"].id,
             montant_charges=p["montant_charges"],
-            montant_fonds_travaux=p["montant_fonds_travaux"],
+            montant_fonds_travaux=p.get("montant_fonds_travaux", 0.0),
         ))
     appel.fonds_travaux_montant = round(
-        sum(p["montant_fonds_travaux"] for p in parts), 2
+        sum(p.get("montant_fonds_travaux", 0.0) for p in parts), 2
     )
     db.commit()
     db.refresh(appel)
@@ -177,9 +178,8 @@ def _appel_out(db: Session, a: AppelFonds) -> AppelOut:
 
 @router.delete("/appels/{appel_id}")
 def delete_appel(appel_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    appel = db.query(AppelFonds).filter(AppelFonds.id == appel_id).first()
-    if not appel:
-        raise HTTPException(404, "Appel introuvable")
+    copro = get_or_create_copro(db, user)
+    appel = get_owned_via(db, AppelFonds, Exercice, appel_id, copro, "exercice_id", label="Appel")
     db.delete(appel)
     db.commit()
     return {"ok": True}
@@ -188,13 +188,15 @@ def delete_appel(appel_id: int, db: Session = Depends(get_db), user: User = Depe
 # ---------- Mouvements ----------
 @router.get("/exercices/{exercice_id}/mouvements", response_model=list[MouvementOut])
 def list_mouvements(exercice_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     return db.query(Mouvement).filter(Mouvement.exercice_id == ex.id).order_by(Mouvement.date.desc(), Mouvement.id.desc()).all()
 
 
 @router.post("/exercices/{exercice_id}/mouvements", response_model=MouvementOut)
 def create_mouvement(exercice_id: int, data: MouvementIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ex = get_exercice(db, exercice_id)
+    copro = get_or_create_copro(db, user)
+    ex = get_exercice(db, exercice_id, copro)
     m = Mouvement(copropriete_id=ex.copropriete_id, exercice_id=ex.id, **data.model_dump())
     db.add(m)
     db.commit()
@@ -204,9 +206,8 @@ def create_mouvement(exercice_id: int, data: MouvementIn, db: Session = Depends(
 
 @router.delete("/mouvements/{mouvement_id}")
 def delete_mouvement(mouvement_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    m = db.query(Mouvement).filter(Mouvement.id == mouvement_id).first()
-    if not m:
-        raise HTTPException(404, "Mouvement introuvable")
+    copro = get_or_create_copro(db, user)
+    m = get_owned(db, Mouvement, mouvement_id, copro, label="Mouvement")
     db.delete(m)
     db.commit()
     return {"ok": True}

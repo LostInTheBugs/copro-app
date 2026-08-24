@@ -10,6 +10,7 @@ from app.models.personne import Personne
 from app.models.ag import AG, Resolution, Vote, AgCreneau, AgCreneauVote
 from app.models.invitation import Invitation
 from app.models.copropriete import Copropriete
+from app.core.scoping import get_owned, get_owned_via
 from app.routes.copro import get_or_create_copro
 from app.services.country_rules import calculer_statut_resolution, MAJORITES
 from app.services.emailer import envoyer_email, convocation_texte, _date_fr, EmailError
@@ -24,7 +25,9 @@ router = APIRouter(prefix="/api", tags=["ag"])
 
 
 def _resolution_out(db: Session, r: Resolution) -> ResolutionOut:
-    lots = db.query(Lot).all()
+    copro_id = r.ag.copropriete_id if r.ag else None
+    lots = (db.query(Lot).filter(Lot.copropriete_id == copro_id).all()
+            if copro_id else [])
     resultat = calculer_statut_resolution(r, lots, r.votes)
     return ResolutionOut(
         id=r.id, ag_id=r.ag_id, numero=r.numero, libelle=r.libelle,
@@ -45,8 +48,12 @@ def _ag_out(db: Session, ag: AG) -> AGOut:
 
 def _creneau_out(db: Session, c: AgCreneau) -> CreneauOut:
     votes = []
+    copro_id = c.ag.copropriete_id if c.ag else None
     for v in c.votes:
-        lot = db.query(Lot).filter(Lot.id == v.lot_id).first()
+        lot = (db.query(Lot)
+               .filter(Lot.id == v.lot_id,
+                       Lot.copropriete_id == copro_id if copro_id else Lot.id == v.lot_id)
+               .first())
         votes.append(CreneauVoteOut(
             id=v.id, lot_id=v.lot_id,
             lot_numero=lot.numero if lot else f"#{v.lot_id}",
@@ -80,9 +87,8 @@ def create_ag(data: AGIn, db: Session = Depends(get_db), user: User = Depends(re
 
 @router.put("/ag/{ag_id}", response_model=AGOut)
 def update_ag(ag_id: int, data: AGIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     for field, value in data.model_dump().items():
         setattr(ag, field, value)
     db.commit()
@@ -92,9 +98,8 @@ def update_ag(ag_id: int, data: AGIn, db: Session = Depends(get_db), user: User 
 
 @router.delete("/ag/{ag_id}")
 def delete_ag(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     db.delete(ag)
     db.commit()
     return {"ok": True}
@@ -103,9 +108,8 @@ def delete_ag(ag_id: int, db: Session = Depends(get_db), user: User = Depends(re
 # ---------- Résolutions ----------
 @router.post("/ag/{ag_id}/resolutions", response_model=ResolutionOut)
 def add_resolution(ag_id: int, data: ResolutionIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     if data.majorite not in MAJORITES:
         raise HTTPException(400, f"Majorité inconnue : {data.majorite}")
     r = Resolution(ag_id=ag.id, **data.model_dump())
@@ -117,9 +121,8 @@ def add_resolution(ag_id: int, data: ResolutionIn, db: Session = Depends(get_db)
 
 @router.put("/resolutions/{res_id}", response_model=ResolutionOut)
 def update_resolution(res_id: int, data: ResolutionIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    r = db.query(Resolution).filter(Resolution.id == res_id).first()
-    if not r:
-        raise HTTPException(404, "Résolution introuvable")
+    copro = get_or_create_copro(db, user)
+    r = get_owned_via(db, Resolution, AG, res_id, copro, "ag_id", label="Résolution")
     for field, value in data.model_dump().items():
         setattr(r, field, value)
     db.commit()
@@ -129,9 +132,8 @@ def update_resolution(res_id: int, data: ResolutionIn, db: Session = Depends(get
 
 @router.delete("/resolutions/{res_id}")
 def delete_resolution(res_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    r = db.query(Resolution).filter(Resolution.id == res_id).first()
-    if not r:
-        raise HTTPException(404, "Résolution introuvable")
+    copro = get_or_create_copro(db, user)
+    r = get_owned_via(db, Resolution, AG, res_id, copro, "ag_id", label="Résolution")
     db.delete(r)
     db.commit()
     return {"ok": True}
@@ -140,12 +142,9 @@ def delete_resolution(res_id: int, db: Session = Depends(get_db), user: User = D
 # ---------- Votes ----------
 @router.post("/resolutions/{res_id}/votes", response_model=VoteOut)
 def set_vote(res_id: int, data: VoteIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    r = db.query(Resolution).filter(Resolution.id == res_id).first()
-    if not r:
-        raise HTTPException(404, "Résolution introuvable")
-    lot = db.query(Lot).filter(Lot.id == data.lot_id).first()
-    if not lot:
-        raise HTTPException(404, "Lot introuvable")
+    copro = get_or_create_copro(db, user)
+    r = get_owned_via(db, Resolution, AG, res_id, copro, "ag_id", label="Résolution")
+    lot = get_owned(db, Lot, data.lot_id, copro, label="Lot")
     if data.voix not in ("pour", "contre", "abstention", "null"):
         raise HTTPException(400, "Voix invalide")
     vote = db.query(Vote).filter(Vote.resolution_id == res_id, Vote.lot_id == data.lot_id).first()
@@ -162,10 +161,9 @@ def set_vote(res_id: int, data: VoteIn, db: Session = Depends(get_db), user: Use
 @router.post("/resolutions/{res_id}/calculer", response_model=ResolutionOut)
 def calculer(res_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Recalcule le statut d'une résolution selon la majorité légale (module FR)."""
-    r = db.query(Resolution).filter(Resolution.id == res_id).first()
-    if not r:
-        raise HTTPException(404, "Résolution introuvable")
-    lots = db.query(Lot).all()
+    copro = get_or_create_copro(db, user)
+    r = get_owned_via(db, Resolution, AG, res_id, copro, "ag_id", label="Résolution")
+    lots = db.query(Lot).filter(Lot.copropriete_id == copro.id).all()
     resultat = calculer_statut_resolution(r, lots, r.votes)
     r.statut = resultat["statut"]
     db.commit()
@@ -176,18 +174,16 @@ def calculer(res_id: int, db: Session = Depends(get_db), user: User = Depends(re
 # ---------- Sondage de dates (type Doodle) ----------
 @router.get("/ag/{ag_id}/creneaux", response_model=list[CreneauOut])
 def list_creneaux(ag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     creneaux = db.query(AgCreneau).filter(AgCreneau.ag_id == ag.id).order_by(AgCreneau.debut).all()
     return [_creneau_out(db, c) for c in creneaux]
 
 
 @router.post("/ag/{ag_id}/creneaux", response_model=CreneauOut)
 def add_creneau(ag_id: int, data: CreneauIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     if data.fin and data.fin <= data.debut:
         raise HTTPException(400, "La fin doit être après le début")
     c = AgCreneau(ag_id=ag.id, debut=data.debut, fin=data.fin)
@@ -199,9 +195,8 @@ def add_creneau(ag_id: int, data: CreneauIn, db: Session = Depends(get_db), user
 
 @router.delete("/creneaux/{creneau_id}")
 def delete_creneau(creneau_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    c = db.query(AgCreneau).filter(AgCreneau.id == creneau_id).first()
-    if not c:
-        raise HTTPException(404, "Créneau introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned_via(db, AgCreneau, AG, creneau_id, copro, "ag_id", label="Créneau")
     db.delete(c)
     db.commit()
     return {"ok": True}
@@ -210,12 +205,9 @@ def delete_creneau(creneau_id: int, db: Session = Depends(get_db), user: User = 
 @router.post("/creneaux/{creneau_id}/votes", response_model=CreneauVoteOut)
 def set_creneau_vote(creneau_id: int, data: CreneauVoteIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Le syndic saisit la disponibilité d'un lot pour un créneau."""
-    c = db.query(AgCreneau).filter(AgCreneau.id == creneau_id).first()
-    if not c:
-        raise HTTPException(404, "Créneau introuvable")
-    lot = db.query(Lot).filter(Lot.id == data.lot_id).first()
-    if not lot:
-        raise HTTPException(404, "Lot introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned_via(db, AgCreneau, AG, creneau_id, copro, "ag_id", label="Créneau")
+    lot = get_owned(db, Lot, data.lot_id, copro, label="Lot")
     vote = db.query(AgCreneauVote).filter(
         AgCreneauVote.creneau_id == creneau_id,
         AgCreneauVote.lot_id == data.lot_id,
@@ -238,9 +230,8 @@ def set_creneau_vote(creneau_id: int, data: CreneauVoteIn, db: Session = Depends
 @router.post("/ag/{ag_id}/choisir-creneau/{creneau_id}", response_model=AGOut)
 def choisir_creneau(ag_id: int, creneau_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Fixe la date/heure de l'AG sur le créneau retenu et passe l'AG en 'convoquée'."""
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     c = db.query(AgCreneau).filter(AgCreneau.id == creneau_id, AgCreneau.ag_id == ag.id).first()
     if not c:
         raise HTTPException(404, "Créneau introuvable pour cette AG")
@@ -255,9 +246,8 @@ def choisir_creneau(ag_id: int, creneau_id: int, db: Session = Depends(get_db), 
 # ---------- Invitations (convocations par email) ----------
 @router.get("/ag/{ag_id}/invitations", response_model=list[InvitationOut])
 def list_invitations(ag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     invs = db.query(Invitation).filter(Invitation.ag_id == ag.id).order_by(Invitation.date_envoi.desc()).all()
     out = []
     for i in invs:
@@ -316,12 +306,8 @@ def envoyer_convocations(db: Session, ag: AG, copro: Copropriete, syndic_nom: st
 @router.post("/ag/{ag_id}/invitations", response_model=InvitationsResult)
 def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Envoie la convocation par email à tous les propriétaires ayant une adresse."""
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
-    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
-    if not copro:
-        raise HTTPException(404, "Copropriété introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     return envoyer_convocations(db, ag, copro, user.nom or "Le syndic")
 
 
@@ -329,12 +315,8 @@ def envoyer_invitations(ag_id: int, db: Session = Depends(get_db), user: User = 
 @router.get("/ag/{ag_id}/pv")
 def telecharger_pv(ag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Génère et télécharge le procès-verbal de l'AG en PDF."""
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
-    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
-    if not copro:
-        raise HTTPException(404, "Copropriété introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
     pdf = generer_pv_pdf(copro, ag, db)
     nom = f"PV_AG_{ag.date.strftime('%Y-%m-%d')}_{copro.nom.replace(' ', '_')}.pdf"
     return Response(
@@ -347,12 +329,8 @@ def telecharger_pv(ag_id: int, db: Session = Depends(get_db), user: User = Depen
 @router.post("/ag/{ag_id}/pv/envoyer", response_model=InvitationsResult)
 def envoyer_pv(ag_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
     """Envoie le PV en PDF (pièce jointe) à tous les propriétaires ayant un email."""
-    ag = db.query(AG).filter(AG.id == ag_id).first()
-    if not ag:
-        raise HTTPException(404, "AG introuvable")
-    copro = db.query(Copropriete).filter(Copropriete.id == ag.copropriete_id).first()
-    if not copro:
-        raise HTTPException(404, "Copropriété introuvable")
+    copro = get_or_create_copro(db, user)
+    ag = get_owned(db, AG, ag_id, copro, label="AG")
 
     pdf = generer_pv_pdf(copro, ag, db)
     nom_fichier = f"PV_AG_{ag.date.strftime('%Y-%m-%d')}.pdf"

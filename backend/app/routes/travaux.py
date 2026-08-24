@@ -4,6 +4,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_syndic
 from app.models.user import User
 from app.models.travaux import Travaux
+from app.core.scoping import get_owned
 from app.routes.copro import get_or_create_copro
 from app.schemas import TravauxIn, TravauxOut
 
@@ -42,9 +43,8 @@ def creer(data: TravauxIn, db: Session = Depends(get_db), user: User = Depends(r
 
 @router.put("/{travaux_id}", response_model=TravauxOut)
 def modifier(travaux_id: int, data: TravauxIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    t = db.query(Travaux).filter(Travaux.id == travaux_id).first()
-    if not t:
-        raise HTTPException(404, "Travaux introuvables")
+    copro = get_or_create_copro(db, user)
+    t = get_owned(db, Travaux, travaux_id, copro, message="Travaux introuvables")
     for k, v in data.model_dump().items():
         setattr(t, k, v)
     db.commit()
@@ -54,9 +54,8 @@ def modifier(travaux_id: int, data: TravauxIn, db: Session = Depends(get_db), us
 
 @router.delete("/{travaux_id}")
 def supprimer(travaux_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    t = db.query(Travaux).filter(Travaux.id == travaux_id).first()
-    if not t:
-        raise HTTPException(404, "Travaux introuvables")
+    copro = get_or_create_copro(db, user)
+    t = get_owned(db, Travaux, travaux_id, copro, message="Travaux introuvables")
     db.delete(t)
     db.commit()
     return {"ok": True}

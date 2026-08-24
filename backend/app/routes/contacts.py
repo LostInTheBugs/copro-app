@@ -4,6 +4,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_syndic
 from app.models.user import User
 from app.models.contact import Contact
+from app.core.scoping import get_owned
 from app.routes.copro import get_or_create_copro
 from app.schemas import ContactIn, ContactOut
 
@@ -50,9 +51,8 @@ def creer(data: ContactIn, db: Session = Depends(get_db), user: User = Depends(r
 
 @router.put("/{contact_id}", response_model=ContactOut)
 def modifier(contact_id: int, data: ContactIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    c = db.query(Contact).filter(Contact.id == contact_id).first()
-    if not c:
-        raise HTTPException(404, "Contact introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned(db, Contact, contact_id, copro, label="Contact")
     for k, v in data.model_dump().items():
         setattr(c, k, v)
     db.commit()
@@ -62,9 +62,8 @@ def modifier(contact_id: int, data: ContactIn, db: Session = Depends(get_db), us
 
 @router.delete("/{contact_id}")
 def supprimer(contact_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    c = db.query(Contact).filter(Contact.id == contact_id).first()
-    if not c:
-        raise HTTPException(404, "Contact introuvable")
+    copro = get_or_create_copro(db, user)
+    c = get_owned(db, Contact, contact_id, copro, label="Contact")
     db.delete(c)
     db.commit()
     return {"ok": True}
