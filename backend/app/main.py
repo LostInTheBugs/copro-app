@@ -4,7 +4,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from app.core.config import get_settings
-from app.core.database import init_db
 from app.routes import auth, copro, lots, comptes, ag, documents, carnet, export, email, relances, travaux, consolide, contacts, contrats
 
 settings = get_settings()
@@ -13,7 +12,10 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.upload_dir, exist_ok=True)
-    init_db()
+    # Les migrations sont gérées par Alembic (`alembic upgrade head`),
+    # étape explicite au démarrage du conteneur / en dev — pas ici :
+    # un démarrage qui migre est dangereux quand plusieurs conteneurs
+    # démarrent en même temps (voir README, section Déploiement).
     from app.core.scheduler import start_scheduler, stop_scheduler
     start_scheduler()
     yield
