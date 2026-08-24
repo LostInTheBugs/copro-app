@@ -1,0 +1,14 @@
+# Contexte de build = racine du dépôt (Dockerfile multi-stage backend/)
+node_modules
+frontend/node_modules
+frontend/dist
+**/__pycache__
+*.pyc
+*.db
+.venv
+.env
+uploads
+claude/
+.git
+*.tsbuildinfo
+rapport-*.md
