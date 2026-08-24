@@ -148,10 +148,10 @@ def create_appel(exercice_id: int, data: AppelIn, db: Session = Depends(get_db),
             appel_id=appel.id,
             lot_id=p["lot"].id,
             montant_charges=p["montant_charges"],
-            montant_fonds_travaux=p["montant_fonds_travaux"],
+            montant_fonds_travaux=p.get("montant_fonds_travaux", 0.0),
         ))
     appel.fonds_travaux_montant = round(
-        sum(p["montant_fonds_travaux"] for p in parts), 2
+        sum(p.get("montant_fonds_travaux", 0.0) for p in parts), 2
     )
     db.commit()
     db.refresh(appel)
