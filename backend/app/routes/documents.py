@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_syndic
 from app.models.user import User
 from app.models.document import Document
+from app.core.scoping import get_owned
 from app.routes.copro import get_or_create_copro
 from app.schemas import DocumentOut
 
@@ -16,6 +17,25 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 settings = get_settings()
 
 CATEGORIES = {"contrat", "assurance", "facture", "devis", "diagnostic", "pv", "convocation", "autre"}
+
+
+def _safe_download_name(libelle: str) -> str:
+    """Assainit un libellé libre pour l'en-tête Content-Disposition.
+
+    Élimine les caractères de contrôle (CR/LF…) et les guillemets, qui
+    permettraient une injection d'en-tête HTTP.
+    """
+    safe = "".join(c for c in (libelle or "") if c.isprintable() and c not in '"\\')
+    return safe.strip() or "document"
+
+
+def _fichier_path(doc: Document) -> str:
+    """Chemin absolu du fichier stocké, garanti sous upload_dir."""
+    base = os.path.abspath(settings.upload_dir)
+    path = os.path.abspath(os.path.join(base, doc.fichier))
+    if not path.startswith(base + os.sep):
+        raise HTTPException(404, "Fichier manquant sur le serveur")
+    return path
 
 
 @router.get("", response_model=list[DocumentOut])
@@ -57,21 +77,19 @@ async def upload_document(
 
 @router.get("/{doc_id}/download")
 def download_document(doc_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(404, "Document introuvable")
-    path = os.path.join(settings.upload_dir, doc.fichier)
+    copro = get_or_create_copro(db, user)
+    doc = get_owned(db, Document, doc_id, copro, label="Document")
+    path = _fichier_path(doc)
     if not os.path.exists(path):
         raise HTTPException(404, "Fichier manquant sur le serveur")
-    return FileResponse(path, filename=doc.libelle)
+    return FileResponse(path, filename=_safe_download_name(doc.libelle))
 
 
 @router.delete("/{doc_id}")
 def delete_document(doc_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(404, "Document introuvable")
-    path = os.path.join(settings.upload_dir, doc.fichier)
+    copro = get_or_create_copro(db, user)
+    doc = get_owned(db, Document, doc_id, copro, label="Document")
+    path = _fichier_path(doc)
     if os.path.exists(path):
         os.remove(path)
     db.delete(doc)
