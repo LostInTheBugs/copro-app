@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_syndic
@@ -7,6 +7,7 @@ from app.models.lot import Lot
 from app.models.personne import Personne
 from app.models.appel import AppelFonds, AppelLot
 from app.models.mouvement import Mouvement
+from app.core.scoping import get_owned
 from app.schemas import LotIn, LotOut, PersonneIn, PersonneOut, LotSolde
 from app.routes.copro import get_or_create_copro
 
@@ -32,9 +33,8 @@ def create_personne(data: PersonneIn, db: Session = Depends(get_db), user: User 
 
 @router.put("/personnes/{personne_id}", response_model=PersonneOut)
 def update_personne(personne_id: int, data: PersonneIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    p = db.query(Personne).filter(Personne.id == personne_id).first()
-    if not p:
-        raise HTTPException(404, "Personne introuvable")
+    copro = get_or_create_copro(db, user)
+    p = get_owned(db, Personne, personne_id, copro, label="Personne")
     for field, value in data.model_dump().items():
         setattr(p, field, value)
     db.commit()
@@ -44,9 +44,8 @@ def update_personne(personne_id: int, data: PersonneIn, db: Session = Depends(ge
 
 @router.delete("/personnes/{personne_id}")
 def delete_personne(personne_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    p = db.query(Personne).filter(Personne.id == personne_id).first()
-    if not p:
-        raise HTTPException(404, "Personne introuvable")
+    copro = get_or_create_copro(db, user)
+    p = get_owned(db, Personne, personne_id, copro, label="Personne")
     db.delete(p)
     db.commit()
     return {"ok": True}
@@ -71,9 +70,8 @@ def create_lot(data: LotIn, db: Session = Depends(get_db), user: User = Depends(
 
 @router.put("/lots/{lot_id}", response_model=LotOut)
 def update_lot(lot_id: int, data: LotIn, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    lot = db.query(Lot).filter(Lot.id == lot_id).first()
-    if not lot:
-        raise HTTPException(404, "Lot introuvable")
+    copro = get_or_create_copro(db, user)
+    lot = get_owned(db, Lot, lot_id, copro, label="Lot")
     for field, value in data.model_dump().items():
         setattr(lot, field, value)
     db.commit()
@@ -83,9 +81,8 @@ def update_lot(lot_id: int, data: LotIn, db: Session = Depends(get_db), user: Us
 
 @router.delete("/lots/{lot_id}")
 def delete_lot(lot_id: int, db: Session = Depends(get_db), user: User = Depends(require_syndic)):
-    lot = db.query(Lot).filter(Lot.id == lot_id).first()
-    if not lot:
-        raise HTTPException(404, "Lot introuvable")
+    copro = get_or_create_copro(db, user)
+    lot = get_owned(db, Lot, lot_id, copro, label="Lot")
     db.delete(lot)
     db.commit()
     return {"ok": True}
