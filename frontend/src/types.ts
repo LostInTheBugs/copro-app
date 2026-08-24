@@ -23,7 +23,7 @@ export interface Copro {
   smtp_host: string;
   smtp_port: number;
   smtp_user: string;
-  smtp_password: string;
+  // smtp_password absent : le backend ne renvoie jamais le secret
   email_expediteur: string;
   frontend_url: string;
   relance_auto: boolean;
