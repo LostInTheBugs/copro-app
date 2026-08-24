@@ -54,6 +54,7 @@ se créer normalement depuis la page de connexion.
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head            # crée/met à jour le schéma (SQLite dev)
 uvicorn app.main:app --reload --port 8000
 
 # Frontend (port 5173)
@@ -68,13 +69,41 @@ Premier lancement : créer le compte syndic via `POST /api/auth/register` (ouver
 
 Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
 
+### Migrations Alembic
+
+Le schéma est géré par **Alembic** (`backend/alembic/`, URL lue depuis `COPRO_DATABASE_URL` —
+aucune duplication dans `alembic.ini`). Les migrations tournent **explicitement**, jamais au
+démarrage de l'application : le `CMD` du conteneur backend exécute `alembic upgrade head` puis
+lance uvicorn (idempotent ; un seul conteneur backend dans le compose actuel).
+
+- **Installation neuve** (nouveau serveur / base vide) : rien à faire, le conteneur migre seul.
+- **Base existante créée par l'ancien `create_all` + `_MIGRATIONS`** (cas de l'instance
+  actuelle) : bascule unique à faire **avant** de laisser démarrer le nouveau conteneur,
+  pour marquer le schéma existant comme déjà migré sans le rejouer :
+
+  ```bash
+  cd /opt/copro-app
+  git pull
+  sudo docker compose build
+  sudo docker compose run --rm backend sh -c "alembic stamp head"   # base existante : marquer, ne pas rejouer
+  sudo docker compose up -d                                          # démarre : upgrade head = no-op + uvicorn
+  ```
+
+  Vérification : `sudo docker compose exec backend alembic current` doit afficher `head`.
+
+- **Évolutions futures** : `alembic revision --autogenerate -m "..."` (backend/), relire la
+  migration, commit, puis le déploiement l'applique au démarrage.
+
+### Mise à jour
+
 ```bash
 # Sur le serveur de production (utilisateur avec droits docker)
 cd /opt/copro-app
 git pull                                  # mise à jour du code
-# Builder le frontend sur la machine de dev puis :
-tar czf - -C frontend dist | ssh serveur "cd /opt/copro-app && mkdir -p frontend_dist && tar xzf - -C frontend_dist && mv -f frontend_dist/dist/* frontend_dist/ 2>/dev/null; rmdir frontend_dist/dist 2>/dev/null"
-sudo docker compose up -d --build          # rebuild backend si nécessaire
+# (jusqu'à la PR docker multi-stage) : builder le frontend sur la machine de dev puis
+# tar czf - -C frontend dist | ssh serveur "cd /opt/copro-app && mkdir -p frontend_dist && \
+#   tar xzf - -C frontend_dist && mv -f frontend_dist/dist/* frontend_dist/ 2>/dev/null; rmdir frontend_dist/dist 2>/dev/null"
+sudo docker compose up -d --build         # rebuild backend si nécessaire
 ```
 
 - `.env` (racine) : `POSTGRES_PASSWORD` + `COPRO_SECRET_KEY` (jamais commités)
