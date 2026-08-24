@@ -36,6 +36,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          # monorepo : le lock vit dans frontend/, pas à la racine du workspace
+          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Build (inclut tsc -b, donc le typecheck)
