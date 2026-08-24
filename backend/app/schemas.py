@@ -53,7 +53,8 @@ class CoproOut(BaseModel):
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
-    smtp_password: str = ""
+    # smtp_password volontairement absent : le secret ne sort jamais du backend
+    # (voir issue GitHub « chiffrement SMTP »)
     email_expediteur: str = ""
     frontend_url: str = ""
     relance_auto: bool = False

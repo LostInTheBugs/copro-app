@@ -33,13 +33,13 @@ def get_or_create_copro(db: Session, user: User) -> Copropriete:
         copro = db.query(Copropriete).filter(Copropriete.id == liens[0].copropriete_id).first()
         if copro:
             return copro
-    # Aucune liaison : première copro existante (premier login) ou création
-    copro = db.query(Copropriete).order_by(Copropriete.id).first()
-    if not copro:
-        copro = Copropriete(nom="Ma copropriété")
-        db.add(copro)
-        db.commit()
-        db.refresh(copro)
+    # Aucune liaison : on ne s'attribue JAMAIS une copropriété existante qui n'est
+    # pas liée au compte — elle appartient potentiellement à un autre syndic.
+    # Premier login (base vide) : création d'une copropriété neuve, liée au compte.
+    copro = Copropriete(nom="Ma copropriété")
+    db.add(copro)
+    db.commit()
+    db.refresh(copro)
     if not user.copropriete_id:
         user.copropriete_id = copro.id
         db.add(UserCopro(user_id=user.id, copropriete_id=copro.id, principale=True))
