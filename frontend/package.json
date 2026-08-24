@@ -1,7 +1,7 @@
 {
   "name": "copro-app-frontend",
   "private": true,
-  "version": "2026.08.100",
+  "version": "2026.08.101-pre",
   "type": "module",
   "scripts": {
     "dev": "vite",
