@@ -22,9 +22,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="CoproApp", version="2026.08.100", lifespan=lifespan)
 
+# CORS : en dev (SQLite) on autorise le serveur Vite ; en prod le frontend est
+# servi par le même backend, donc liste vide par défaut (configurable via
+# COPRO_CORS_ORIGINS, JSON : '["https://app.example.fr"]').
+origins = settings.cors_origins
+if not origins and settings.is_sqlite:
+    origins = ["http://localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # dev ; en prod le frontend est servi par le même backend
+    allow_origins=origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

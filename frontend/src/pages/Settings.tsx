@@ -14,6 +14,8 @@ export default function Settings() {
   const [error, setError] = useState("");
   const [smtpTest, setSmtpTest] = useState<{ ok: boolean; detail: string } | null>(null);
   const [smtpBusy, setSmtpBusy] = useState(false);
+  // Nouveau mot de passe SMTP (le mot de passe actuel n'est jamais renvoyé par le backend)
+  const [smtpPassword, setSmtpPassword] = useState("");
   const [prochaineDate, setProchaineDate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,11 +75,16 @@ export default function Settings() {
     setSaved(false);
     setError("");
     try {
-      await api.put("/smtp/config", {
+      const payload: Record<string, unknown> = {
         smtp_host: copro.smtp_host, smtp_port: copro.smtp_port,
-        smtp_user: copro.smtp_user, smtp_password: copro.smtp_password,
+        smtp_user: copro.smtp_user,
         email_expediteur: copro.email_expediteur, frontend_url: copro.frontend_url,
-      });
+      };
+      // Le mot de passe n'est jamais renvoyé par le backend : champ « nouveau
+      // mot de passe » — vide = conserver l'existant.
+      if (smtpPassword.trim()) payload.smtp_password = smtpPassword.trim();
+      await api.put("/smtp/config", payload);
+      setSmtpPassword("");
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -89,11 +96,13 @@ export default function Settings() {
     setSmtpBusy(true);
     setSmtpTest(null);
     try {
-      const res = await api.post<{ ok: boolean; detail: string }>("/smtp/test", {
+      const payload: Record<string, unknown> = {
         smtp_host: copro.smtp_host, smtp_port: copro.smtp_port,
-        smtp_user: copro.smtp_user, smtp_password: copro.smtp_password,
+        smtp_user: copro.smtp_user,
         email_expediteur: copro.email_expediteur, frontend_url: copro.frontend_url,
-      });
+      };
+      if (smtpPassword.trim()) payload.smtp_password = smtpPassword.trim();
+      const res = await api.post<{ ok: boolean; detail: string }>("/smtp/test", payload);
       setSmtpTest(res);
     } catch (e) {
       setSmtpTest({ ok: false, detail: e instanceof Error ? e.message : "Erreur" });
@@ -176,7 +185,7 @@ export default function Settings() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Utilisateur" value={copro.smtp_user} onChange={(e) => setCopro({ ...copro, smtp_user: e.target.value })} placeholder="compte@example.fr" />
-            <Input label="Mot de passe" type="password" value={copro.smtp_password} onChange={(e) => setCopro({ ...copro, smtp_password: e.target.value })} />
+            <Input label="Nouveau mot de passe" type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} placeholder="Laisser vide pour conserver" autoComplete="new-password" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Expéditeur" value={copro.email_expediteur} onChange={(e) => setCopro({ ...copro, email_expediteur: e.target.value })} placeholder="syndic@votre-domaine.fr" />

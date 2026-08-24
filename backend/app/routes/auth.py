@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.core.deps import get_current_user, require_syndic
 from app.models.user import User, UserCopro
 from app.models.copropriete import Copropriete
+from app.routes.copro import get_or_create_copro
 from app.schemas import RegisterRequest, LoginRequest, TokenResponse, UserOut, UserCreate, CoproCreate
+from app.core.rate_limit import check_login_allowed, record_failure, clear_failures
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -35,10 +37,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+def login(req: LoginRequest, db: Session = Depends(get_db), request: Request = None):  # noqa: E501
+    ip = request.client.host if request and request.client else "?"
+    check_login_allowed(req.email, ip)
     user = db.query(User).filter(User.email == req.email.lower().strip()).first()
     if not user or not verify_password(req.password, user.password_hash):
+        record_failure(req.email, ip)
         raise HTTPException(401, "Email ou mot de passe incorrect")
+    clear_failures(req.email, ip)
     return TokenResponse(access_token=create_access_token(user.id, _copro_principale(db, user)))
 
 
@@ -102,7 +108,6 @@ def create_user(req: UserCreate, db: Session = Depends(get_db), user: User = Dep
     if db.query(User).filter(User.email == req.email.lower().strip()).first():
         raise HTTPException(400, "Cet email est déjà utilisé")
     # Le compte créé est lié à la copropriété active du syndic
-    from app.routes.copro import get_or_create_copro
     copro = get_or_create_copro(db, user)
     new_user = User(
         email=req.email.lower().strip(),
@@ -120,15 +125,24 @@ def create_user(req: UserCreate, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.get("/users", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db), _: User = Depends(require_syndic)):
-    return db.query(User).order_by(User.nom).all()
+def list_users(db: Session = Depends(get_db), user: User = Depends(require_syndic)):
+    """Comptes de la copropriété active uniquement (jamais toute l'instance)."""
+    copro = get_or_create_copro(db, user)
+    return (db.query(User)
+            .join(UserCopro, UserCopro.user_id == User.id)
+            .filter(UserCopro.copropriete_id == copro.id)
+            .order_by(User.nom).all())
 
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current: User = Depends(require_syndic)):
     if user_id == current.id:
         raise HTTPException(400, "Impossible de supprimer son propre compte")
-    user = db.query(User).filter(User.id == user_id).first()
+    copro = get_or_create_copro(db, current)
+    user = (db.query(User)
+            .join(UserCopro, UserCopro.user_id == User.id)
+            .filter(User.id == user_id, UserCopro.copropriete_id == copro.id)
+            .first())
     if not user:
         raise HTTPException(404, "Utilisateur introuvable")
     db.delete(user)

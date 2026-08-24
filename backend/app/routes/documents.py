@@ -17,6 +17,8 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 settings = get_settings()
 
 CATEGORIES = {"contrat", "assurance", "facture", "devis", "diagnostic", "pv", "convocation", "autre"}
+# Liste blanche d'extensions acceptées à l'upload (refus des exécutables, etc.)
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".odt", ".ods"}
 
 
 def _safe_download_name(libelle: str) -> str:
@@ -54,12 +56,17 @@ async def upload_document(
 ):
     if categorie not in CATEGORIES:
         categorie = "autre"
+    ext = os.path.splitext(fichier.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Type de fichier refusé (autorisé : {', '.join(sorted(ALLOWED_EXTENSIONS))})")
     copro = get_or_create_copro(db, user)
     os.makedirs(settings.upload_dir, exist_ok=True)
-    ext = os.path.splitext(fichier.filename or "")[1][:10]
     nom_stocke = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(settings.upload_dir, nom_stocke)
     content = await fichier.read()
+    max_bytes = int(settings.upload_max_mb * 1024 * 1024)
+    if len(content) > max_bytes:
+        raise HTTPException(413, f"Fichier trop volumineux (maximum {settings.upload_max_mb:g} Mo)")
     with open(path, "wb") as f:
         f.write(content)
     doc = Document(

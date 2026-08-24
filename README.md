@@ -64,6 +64,24 @@ npm run dev
 
 Premier lancement : créer le compte syndic via `POST /api/auth/register` (ouvert tant qu'aucun utilisateur n'existe).
 
+## Sécurité
+
+- **`COPRO_SECRET_KEY` obligatoire hors dev** : le backend refuse de démarrer
+  (hors base SQLite) si la clé de signature JWT n'a pas été définie —
+  la valeur par défaut `change-me` est publique et permettrait de forger des
+  tokens. Génération : `python -c "import secrets; print(secrets.token_hex(32))"`.
+- **Rate limiting sur `/api/auth/login`** : 5 tentatives échouées par email et
+  par IP sur 15 minutes, puis `429` (limiteur en mémoire, adapté à une instance
+  mono-serveur).
+- **Upload de documents** : plafond configurable `COPRO_UPLOAD_MAX_MB` (défaut
+  25 Mo, `413` au-delà) et liste blanche d'extensions
+  (`.pdf .jpg .jpeg .png .doc .docx .xls .xlsx .odt .ods`, `400` sinon).
+- **CORS** : liste d'origines configurable `COPRO_CORS_ORIGINS` (JSON).
+  Vide en production — le frontend est servi par le même backend. En dev
+  (SQLite), `http://localhost:5173` est autorisé automatiquement.
+- **Isolation multi-copropriétés** : tout accès par identifiant est scopé à la
+  copropriété active du token (404 si l'objet appartient à une autre copro).
+
 ## Déploiement
 
 Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
