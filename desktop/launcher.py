@@ -62,6 +62,85 @@ def screen_size() -> tuple:
         return 1280, 800
 
 
+def _machine_info() -> list:
+    """Diagnostic machine (Windows) : .NET, runtime WebView2, versions."""
+    import platform as _p
+
+    lines = [
+        "Proprietas Desktop - journal de démarrage",
+        time.strftime("%Y-%m-%d %H:%M:%S"),
+        f"python: {sys.version}",
+        f"platform: {_p.platform()}",
+        f"frozen: {getattr(sys, 'frozen', False)}",
+        f"executable: {sys.executable}",
+    ]
+    try:
+        import webview as _wv
+
+        lines.append(f"pywebview: {getattr(_wv, '__version__', '?')}")
+    except Exception as e:
+        lines.append(f"import webview: ECHEC ({e!r})")
+    try:
+        import winreg
+
+        try:
+            k = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full",
+            )
+            lines.append(f"netfx Release: {winreg.QueryValueEx(k, 'Release')[0]}")
+        except Exception as e:
+            lines.append(f"netfx: indetectable ({e})")
+        for key, name in (
+            ("{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", "WebView2 Runtime"),
+            ("{2CD8A007-E189-409D-A2C8-9AF4EF3C72AA}", "WebView2 Beta"),
+            ("{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}", "WebView2 Dev"),
+            ("{65C35B14-6C1D-4122-AC46-7148CC9D6497}", "WebView2 Canary"),
+        ):
+            found = "absent"
+            for hive, path in (
+                (winreg.HKEY_CURRENT_USER, rf"Software\Microsoft\EdgeUpdate\Clients\{key}"),
+                (winreg.HKEY_LOCAL_MACHINE, rf"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{key}"),
+                (winreg.HKEY_LOCAL_MACHINE, rf"SOFTWARE\Microsoft\EdgeUpdate\Clients\{key}"),
+            ):
+                try:
+                    kk = winreg.OpenKey(hive, path)
+                    found = str(winreg.QueryValueEx(kk, "pv")[0])
+                    break
+                except Exception:
+                    pass
+            lines.append(f"{name}: {found}")
+    except Exception as e:
+        lines.append(f"winreg indisponible ({e})")
+    return lines
+
+
+def _write_desktop_log(blocks: list) -> None:
+    """Écrit desktop.log à côté de l'exécutable (diagnostic fenêtre native)."""
+    try:
+        txt = "\n".join(_machine_info() + [""] + blocks) + "\n"
+        (base_dir() / "desktop.log").write_text(txt, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _warn_user(base: Path) -> None:
+    """Avertit l'utilisateur que la fenêtre native a échoué (best effort)."""
+    try:
+        import ctypes
+
+        msg = (
+            "La fenêtre native de Proprietas n'a pas pu s'ouvrir.\n"
+            "Un journal de diagnostic a été écrit :\n"
+            f"{base / 'desktop.log'}\n\n"
+            "L'application s'ouvre dans votre navigateur.\n"
+            "Merci d'envoyer ce journal au développeur."
+        )
+        ctypes.windll.user32.MessageBoxW(0, msg, "Proprietas", 0x30)
+    except Exception:
+        pass
+
+
 def prepare_env(base: Path, res: Path) -> None:
     """Configuration du serveur embarqué : SQLite + uploads dans data/."""
     data = base / "data"
@@ -166,7 +245,7 @@ def main() -> None:
             pass
         return
 
-    try:
+    def _open_window() -> None:
         import webview  # fenêtre native (WebView2 sous Windows)
 
         sw, sh = screen_size()
@@ -181,8 +260,28 @@ def main() -> None:
             js_api=DesktopApi(),
         )
         webview.start()  # bloque jusqu'à la fermeture de la fenêtre
+
+    try:
+        _open_window()
         return
-    except Exception:  # fenêtre indisponible → navigateur par défaut
+    except Exception:
+        import traceback
+
+        first = traceback.format_exc()
+        # Tentative 2 : état webview neuf (l'init WebView2/CLR peut échouer au
+        # premier essai sur certaines machines) — journalisée dans les 2 cas.
+        try:
+            for m in [k for k in list(sys.modules) if k == "webview" or k.startswith("webview.")]:
+                del sys.modules[m]
+            _open_window()
+            _write_desktop_log(["tentative 1 (traceback) :", first, "", "tentative 2 : OK"])
+            return
+        except Exception:
+            second = traceback.format_exc()
+        _write_desktop_log(
+            ["tentative 1 (traceback) :", first, "", "tentative 2 (traceback) :", second]
+        )
+        _warn_user(base)
         import webbrowser
 
         webbrowser.open(url)
