@@ -1,0 +1,36 @@
+PROPRIETAS — WINDOWS-VERSIOUN (Desktop-App)
+===========================================
+
+Wat ass dat?
+  Proprietas ass eng App fir d'Gestioun vun enger Coproprietéit fir
+  fräiwëlleg Syndiken. Dës Windows-Versioun ass autonom: Server an
+  Interface sinn am Dossier agebaut — näischt anescht ze installéieren,
+  keng Internetverbindung néideg. Är Donnéeë bleiwen op dësem Computer.
+
+Installatioun
+  1. Entpackt den Dossier « Proprietas » wou Dir wëllt (z. B. Dokumenter).
+  2. Duebelklick op « Proprietas.exe » — d'Fënster geet op.
+  3. Beim éischten Start: erstellt Äre Syndic-Kont (Tab « Premier compte
+     (syndic) »). D'Interface ass op Franséisch.
+
+Är Donnéeën
+  - Si leien am Dossier « data », NIEVERNT « Proprietas.exe ».
+  - Sécherung = den Dossier « data » kopéieren (USB-Stick, extern Plack…).
+  - Trennt den Exe ni vun sengem Dossier « data »: si ginn zesummen.
+
+Windows / Antivirus
+  - D'App ass net digital signéiert: beim éischte Start kann Windows eng
+    Warnung weisen (« Windows huet Äre PC geschützt »). Klickt op
+    « Weider Informatiounen » an dann « Trotzdem ausféieren ».
+  - Wann Ären Antivirus se mëllt: autoriséiert se op dem Apparat — et ass
+    e falschen Alarm (Open-Source-App, keng Telemetrie).
+
+Gutt ze wëssen
+  - Experimentell App, als Demonstratioun: et ass keng juristesch Berodung
+    a net garantéiert konform mat der Gesetzgebung. Fir juristesch Froen
+    konsultéiert e Professionnel.
+  - Update: déi nei Versioun eroflueden an Proprietas.exe ersetzen (behält
+    Ären Dossier « data »).
+  - Quellcode: https://github.com/LostInTheBugs/Proprietas
+
+Vill Erfolleg!

@@ -1,0 +1,41 @@
+PROPRIETAS — WINDOWS-VERSION (Desktop-Anwendung)
+================================================
+
+Was ist das?
+  Proprietas ist eine Verwaltungsanwendung für Wohnungseigentümer-
+  gemeinschaften (Copropriété), für ehrenamtliche Verwalter. Diese
+  Windows-Version ist eigenständig: Server und Oberfläche sind im Ordner
+  enthalten — nichts weiter zu installieren, keine Internetverbindung
+  nötig. Ihre Daten bleiben auf diesem Computer.
+
+Installation
+  1. Entpacken Sie den Ordner « Proprietas » an einen beliebigen Ort
+     (z. B. Dokumente).
+  2. Doppelklick auf « Proprietas.exe » — das Fenster öffnet sich.
+  3. Beim ersten Start: Verwalterkonto anlegen (Tab « Premier compte
+     (syndic) »). Die Oberfläche ist auf Französisch.
+
+Ihre Daten
+  - Sie liegen im Ordner « data », NEBEN Proprietas.exe.
+  - Sicherung = den Ordner « data » kopieren (USB-Stick, externe
+    Festplatte…).
+  - Trennen Sie die Exe nie von ihrem Ordner « data »: sie gehören
+    zusammen.
+
+Windows / Antivirus
+  - Die Anwendung ist nicht digital signiert: beim ersten Start kann
+    Windows eine Warnung anzeigen (« Windows hat Ihren PC geschützt »).
+    Klicken Sie auf « Weitere Informationen » und dann « Trotzdem
+    ausführen ».
+  - Falls Ihr Antivirus anschlägt: auf dem Gerät zulassen — es ist ein
+    Fehlalarm (Open-Source-Anwendung, keine Telemetrie).
+
+Gut zu wissen
+  - Experimentelle Anwendung, als Demonstration bereitgestellt: sie ist
+    keine Rechtsberatung und nicht garantiert gesetzeskonform. Für
+    Rechtsfragen wenden Sie sich an einen Fachmann.
+  - Update: neue Version herunterladen und Proprietas.exe ersetzen (den
+    Ordner « data » behalten).
+  - Quellcode: https://github.com/LostInTheBugs/Proprietas
+
+Viel Erfolg!

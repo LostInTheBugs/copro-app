@@ -1,0 +1,37 @@
+PROPRIETAS — VERSION WINDOWS (application de bureau)
+====================================================
+
+Qu'est-ce que c'est ?
+  Proprietas est une application de gestion de copropriété pour syndic
+  bénévole. Cette version Windows est autonome : le serveur et l'interface
+  sont embarqués dans le dossier, rien à installer d'autre, aucune
+  connexion internet requise. Vos données restent sur cet ordinateur.
+
+Installation
+  1. Décompressez le dossier « Proprietas » où vous voulez (ex. Documents).
+  2. Double-cliquez sur « Proprietas.exe » — la fenêtre s'ouvre.
+  3. Au premier lancement : créez votre compte syndic (onglet « Premier
+     compte (syndic) »). L'interface est en français.
+
+Vos données
+  - Elles vivent dans le dossier « data », À CÔTÉ de Proprietas.exe.
+  - Sauvegarder = copier le dossier « data » (clé USB, disque externe…).
+  - Ne séparez jamais l'exécutable de son dossier « data » : ils vont
+    ensemble.
+
+Windows / antivirus
+  - L'application n'est pas signée numériquement : au premier lancement,
+    Windows peut afficher un avertissement (« Windows a protégé votre PC »).
+    Cliquez sur « Informations complémentaires » puis « Exécuter quand même ».
+  - Si votre antivirus la signale, autorisez-la sur l'appareil : c'est un
+    faux positif (application open source, sans télémétrie).
+
+Bon à savoir
+  - Application expérimentale, fournie à titre de démonstration : elle ne
+    constitue pas un conseil juridique et n'est pas garantie conforme à la
+    législation. Pour toute question de droit, consultez un professionnel.
+  - Mise à jour : téléchargez la nouvelle version et remplacez
+    Proprietas.exe (conservez votre dossier « data »).
+  - Code source : https://github.com/LostInTheBugs/Proprietas
+
+Bon usage !

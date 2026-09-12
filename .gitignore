@@ -23,3 +23,9 @@ uploads/
 
 # Prompts de travail (audit/tâches) — jamais publiés
 claude/
+
+# Build desktop (générés)
+desktop/version_info.txt
+desktop/build/
+desktop/dist/
+build/
