@@ -65,6 +65,48 @@ jobs:
           Write-Host "UI check: Proprietas found in bundle HTML; SQLite database created"
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
 
+      - name: Window smoke test (real window + screenshot)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path shots | Out-Null
+          $env:PROPRIETAS_NO_WINDOW = $null
+          $p = Start-Process -FilePath dist\Proprietas\Proprietas.exe -PassThru
+          Start-Sleep -Seconds 40
+          $all = Get-Process -Name Proprietas -ErrorAction SilentlyContinue
+          if (-not $all) {
+            Write-Host 'window mode: process exited'
+            if (Test-Path dist\Proprietas\error.log) { Write-Host '--- error.log ---'; Get-Content dist\Proprietas\error.log }
+            throw 'window mode: process died before showing a window'
+          }
+          $all | Select-Object Id, MainWindowTitle, MainWindowHandle, StartTime | Format-List | Out-String | Write-Host
+          $main = $all | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+          Write-Host "MainWindowTitle=[$($main.MainWindowTitle)]"
+          Write-Host "browser fallback? msedge processes: $((Get-Process msedge -ErrorAction SilentlyContinue).Count)"
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $b = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+          $g = [System.Drawing.Graphics]::FromImage($b)
+          $g.CopyFromScreen($bounds.X, $bounds.Y, 0, 0, $b.Size)
+          $b.Save("$PWD\shots\window.png")
+          $g.Dispose(); $b.Dispose()
+          if (-not $main) {
+            if (Test-Path dist\Proprietas\error.log) { Get-Content dist\Proprietas\error.log }
+            throw 'no visible window handle'
+          }
+          Start-Sleep -Seconds 2
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          Get-Process -Name Proprietas -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+      - name: Upload window screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProprietasDesktop-shot
+          path: shots/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Debug files (always)
         if: always()
         shell: pwsh
