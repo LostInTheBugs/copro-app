@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed de démonstration CoproApp.
+"""Seed de démonstration Proprietas.
 
 Crée un compte démo + 2 copropriétés réalistes (lots, comptes, AG, PV/votes,
 documents, carnet, travaux, relances). Idempotent : ne fait rien si le compte

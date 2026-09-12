@@ -41,8 +41,8 @@ def test_smtp(
         envoyer_email(
             copro,
             copro.email_expediteur,
-            "Test CoproApp",
-            "Cet email confirme que la configuration SMTP de CoproApp fonctionne.",
+            "Test Proprietas",
+            "Cet email confirme que la configuration SMTP de Proprietas fonctionne.",
         )
         db.commit()
         return SmtpTestResult(ok=True, detail="Email de test envoyé avec succès")

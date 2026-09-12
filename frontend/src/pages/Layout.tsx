@@ -84,11 +84,9 @@ export default function Layout() {
             className="flex w-full items-center gap-2.5 text-left"
             title="Changer de copropriété"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
-              C
-            </div>
+            <img src="/proprietas-icon.png" alt="" className="h-9 w-auto shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-800">CoproApp</p>
+              <p className="truncate text-sm font-bold text-slate-800">Proprietas</p>
               <p className="truncate text-xs text-slate-500">{active?.nom ?? "…"}</p>
             </div>
             <span className="text-xs text-slate-400">▾</span>

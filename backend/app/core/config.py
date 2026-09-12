@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "CoproApp"
+    app_name: str = "Proprietas"
     database_url: str = "sqlite:///./copro.db"
     secret_key: str = "change-me"
     algorithm: str = "HS256"

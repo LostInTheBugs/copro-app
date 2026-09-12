@@ -1,4 +1,10 @@
-# CoproApp
+# Proprietas
+
+<img src="frontend/public/proprietas-lockup.png" alt="Proprietas — Data Sovereignty" width="170">
+
+> Anciennement **CoproApp**, renommée **Proprietas** en septembre 2026 (nouvelle identité
+> visuelle ; le dépôt GitHub devient `LostInTheBugs/Proprietas`, les anciennes URLs redirigent).
+> Version courante : **2026.09.001**.
 
 Gestion de copropriété pour syndic bénévole, conçue pour le régime « petite copropriété »
 français (art. 41-8 de la loi du 10 juillet 1965, issu de l'ordonnance n° 2019-1101 :
@@ -8,7 +14,8 @@ comptabilité simplifiée, consultation écrite, majorités de vote automatiques
 
 ## 🎮 Démo
 
-**https://copro.cloudfr.net** — un compte de démonstration est préconfiguré avec
+**https://proprietas.cloudfr.net** (anciennement https://copro.cloudfr.net, conservé) —
+un compte de démonstration est préconfiguré avec
 deux copropriétés complètes (Paris : 5 lots, comptes 2024-2026, AG + PV, documents,
 plan pluriannuel de travaux ; Lyon : 3 lots) :
 
@@ -105,7 +112,8 @@ déploiement réel, le parcours équivalent tournant en CI dans `test_flux_compl
 
 ## Déploiement
 
-Production : **https://copro.cloudfr.net** (Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
+Production : **https://proprietas.cloudfr.net** + legacy **https://copro.cloudfr.net**
+(Cloudflare proxy → serveur de production, Caddy TLS Let's Encrypt).
 
 ### Migrations Alembic
 
